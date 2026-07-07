@@ -1,0 +1,120 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+@import "@fontsource-variable/rubik/index.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-mint: var(--mint);
+  --color-mint-glow: var(--mint-glow);
+  --font-display: "Rubik Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Rubik Variable", ui-sans-serif, system-ui, sans-serif;
+}
+
+:root {
+  --radius: 0.75rem;
+  --background: oklch(0 0 0);
+  --foreground: oklch(0.98 0 0);
+  --card: oklch(0.12 0.01 160);
+  --card-foreground: oklch(0.98 0 0);
+  --primary: oklch(0.86 0.19 158);
+  --primary-foreground: oklch(0.15 0.03 160);
+  --secondary: oklch(0.18 0.02 160);
+  --secondary-foreground: oklch(0.98 0 0);
+  --muted: oklch(0.18 0.01 160);
+  --muted-foreground: oklch(0.65 0.02 160);
+  --accent: oklch(0.86 0.19 158);
+  --accent-foreground: oklch(0.15 0.03 160);
+  --border: oklch(0.25 0.02 160 / 60%);
+  --input: oklch(0.2 0.02 160);
+  --ring: oklch(0.86 0.19 158);
+  --mint: oklch(0.86 0.19 158);
+  --mint-glow: oklch(0.9 0.2 158);
+  --destructive: oklch(0.65 0.22 25);
+  --destructive-foreground: oklch(0.98 0 0);
+  --popover: oklch(0.14 0.01 160);
+  --popover-foreground: oklch(0.98 0 0);
+  --chart-1: var(--mint);
+  --chart-2: oklch(0.6 0.12 200);
+  --chart-3: oklch(0.7 0.15 140);
+  --chart-4: oklch(0.75 0.18 100);
+  --chart-5: oklch(0.65 0.2 60);
+  --sidebar: oklch(0.08 0 0);
+  --sidebar-foreground: oklch(0.98 0 0);
+  --sidebar-primary: var(--mint);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: oklch(0.18 0.02 160);
+  --sidebar-accent-foreground: oklch(0.98 0 0);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
+}
+
+@theme inline {
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-ring-offset-background: var(--background);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 0.15; }
+  50% { opacity: 0.9; }
+}
+@keyframes ring-float {
+  0%, 100% { transform: translateY(0) rotate(-8deg); }
+  50% { transform: translateY(-12px) rotate(-8deg); }
+}
+@keyframes ring-glow {
+  0%, 100% { opacity: 0.35; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.05); }
+}
+
+@utility star {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  border-radius: 9999px;
+  background: white;
+  animation: twinkle 4s ease-in-out infinite;
+}
+
+@layer base {
+  * { border-color: var(--color-border); }
+  html, body { background: var(--color-background); color: var(--color-foreground); font-family: var(--font-sans); }
+  body { font-feature-settings: "ss01","cv11"; }
+  ::selection { background: var(--mint); color: black; }
+}
