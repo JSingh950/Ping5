@@ -30,6 +30,12 @@ const whyCards = [
   ["Expediency", "A single tap removes lost cards, QR-code camera fumbles, fragmented links, and cold follow-up dead ends."],
 ];
 
+const navServices = [
+  ["NFC IDENTITY", "Native tap-to-profile transfer across iPhone and Android."],
+  ["HARDWARE PORTAL", "Titanium smart ring gateway for real-world identity."],
+  ["RELATIONSHIP GRAPH", "Software layer for physical-to-digital connection mapping."],
+];
+
 function seededRandom(seed: number) {
   const x = Math.sin(seed) * 10000;
   return x - Math.floor(x);
@@ -108,6 +114,8 @@ function HardwareStage({ progress }: { progress: number }) {
 
   useFrame(({ clock }) => {
     const t = clock.elapsedTime;
+    const heroShift = Math.min(1, progress * 4.15);
+    const objectX = -2.65 + heroShift * 4.85;
     if (stage.current) {
       stage.current.rotation.x = -1.09 + progress * 0.23;
       stage.current.rotation.z = -0.08 + Math.sin(t * 0.08) * 0.025 + progress * 0.12;
@@ -115,8 +123,8 @@ function HardwareStage({ progress }: { progress: number }) {
       stage.current.position.z = -8.5 + progress * 3.7;
     }
     if (chip.current) {
-      chip.current.position.x = 5.05 - progress * 6.65;
-      chip.current.position.y = 1.74 + Math.sin(t * 0.44) * 0.04;
+      chip.current.position.x = objectX;
+      chip.current.position.y = 2.58 + Math.sin(t * 0.44) * 0.04;
       chip.current.position.z = -1.25 - progress * 1.25;
       chip.current.rotation.z = -0.1 + progress * 0.42;
       chip.current.rotation.y = -0.1 + progress * 0.62;
@@ -126,8 +134,8 @@ function HardwareStage({ progress }: { progress: number }) {
       ring.current.rotation.x = 1.25 + progress * 1.4;
       ring.current.rotation.y = t * 0.18 + progress * 2.2;
       ring.current.rotation.z = 0.15 + Math.sin(t * 0.4) * 0.06;
-      ring.current.position.x = 5.05 - progress * 6.65;
-      ring.current.position.y = 2.74 + Math.sin(t * 0.52) * 0.08;
+      ring.current.position.x = objectX;
+      ring.current.position.y = 3.5 + Math.sin(t * 0.52) * 0.08;
       ring.current.position.z = -1.08 - progress * 1.25;
       ring.current.scale.setScalar(1.12);
     }
@@ -156,24 +164,24 @@ function HardwareStage({ progress }: { progress: number }) {
         ))}
       </group>
 
-      <group ref={chip} position={[5.05, 1.74, -1.25]} rotation={[0, -0.1, -0.1]}>
+      <group ref={chip} position={[-2.65, 2.58, -1.25]} rotation={[0, -0.1, -0.1]}>
         <mesh castShadow receiveShadow>
           <boxGeometry args={[3.15, 0.46, 2.15]} />
           <meshStandardMaterial color="#080908" metalness={0.75} roughness={0.22} emissive="#07170d" emissiveIntensity={0.1} />
         </mesh>
         <mesh position={[0, -0.28, 0]}>
           <boxGeometry args={[3.32, 0.32, 2.28]} />
-          <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.75} toneMapped={false} roughness={0.3} />
+          <meshStandardMaterial color="#05280f" emissive={accent} emissiveIntensity={0.45} toneMapped={false} roughness={0.36} />
         </mesh>
         {Array.from({ length: 16 }).map((_, index) => (
           <mesh key={`pin-${index}`} position={[-1.45 + (index % 8) * 0.41, -0.09, index < 8 ? -1.25 : 1.25]}>
             <boxGeometry args={[0.11, 0.15, 0.36]} />
-            <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={1.1} toneMapped={false} />
+            <meshStandardMaterial color="#0cff69" emissive={accent} emissiveIntensity={0.82} toneMapped={false} />
           </mesh>
         ))}
       </group>
 
-      <group ref={ring} position={[5.05, 2.74, -1.08]}>
+      <group ref={ring} position={[-2.65, 3.5, -1.08]}>
         <mesh castShadow>
           <torusGeometry args={[0.86, 0.14, 40, 180]} />
           <meshStandardMaterial color="#030303" metalness={0.96} roughness={0.1} envMapIntensity={2.35} />
@@ -220,7 +228,7 @@ function Loader({ visible }: { visible: boolean }) {
 
 function Header() {
   return (
-    <header className="fixed left-0 top-0 z-40 flex h-[78px] w-full items-center border-b border-white/10 bg-black/72 px-8 backdrop-blur-sm">
+    <header className="group fixed left-0 top-0 z-40 flex h-[78px] w-full items-center border-b border-white/10 bg-black/72 px-8 backdrop-blur-sm">
       <a className="mr-auto flex items-center gap-3 text-[22px] font-bold uppercase tracking-[0.02em]" href="#top">
         <span className="grid h-5 w-9 grid-cols-3 gap-[2px]">
           {Array.from({ length: 9 }).map((_, index) => (
@@ -240,6 +248,16 @@ function Header() {
         Let&apos;s connect →
       </a>
       <a className="ml-auto text-[12px] uppercase tracking-[0.2em] md:hidden" href="#about">menu</a>
+      <div className="pointer-events-none absolute left-0 top-[78px] hidden w-full border-b border-white/10 bg-black/92 opacity-0 transition-opacity duration-200 group-hover:pointer-events-auto group-hover:opacity-100 md:block">
+        <div className="mx-auto grid w-[75vw] max-w-[1080px] grid-cols-3 gap-px bg-white/10 py-8">
+          {navServices.map(([title, body]) => (
+            <a className="min-h-32 bg-black p-6 text-left" href="#markets" key={title}>
+              <p className="text-[12px] uppercase tracking-[0.22em] text-[#00ff66]">{title}</p>
+              <p className="mt-4 text-[14px] leading-5 text-white/70">{body}</p>
+            </a>
+          ))}
+        </div>
+      </div>
     </header>
   );
 }
@@ -275,21 +293,20 @@ function HeroSection() {
   return (
     <header className="section relative min-h-screen pt-[78px]" id="top">
       <div className="mx-auto flex min-h-[calc(100vh-78px)] w-[75vw] max-w-[1080px] flex-col justify-between py-[74px]">
-        <h1 className="display-type max-w-[1080px] text-[78px] uppercase leading-[0.76] text-white md:text-[135px]">
-          <span className="ml-[14%] block">TAP INTO</span>
-          <span className="ml-[74%] block text-[#00ff66]">REAL</span>
-          <span className="ml-[30%] block">CONNECTION</span>
+        <h1 className="display-type max-w-[1080px] text-[48px] uppercase leading-[0.82] text-white md:text-[88px]">
+          <span className="ml-[14%] block whitespace-nowrap">EMPOWERING <span className="text-[#00ff66]">NATIVE</span></span>
+          <span className="ml-[31%] block whitespace-nowrap">DIGITAL IDENTITY<span className="text-[#00ff66]">.</span></span>
         </h1>
         <div className="ml-auto w-full max-w-[442px] pb-1">
           <h2 className="mono-title text-[24px] uppercase leading-none">we are ping</h2>
           <p className="mt-5 text-[16px] leading-6 text-white">
-            Ping! bridges physical connection to your digital identity trail through ultra-lightweight NFC ring hardware.
+            Ping! is identity infrastructure for real-world connection: NFC ring hardware, portfolio exchange, and relationship intelligence.
           </p>
           <div className="mt-5 grid grid-cols-2 gap-5">
-            <a className="button-raven" href="https://getping.today">Partnerships</a>
-            <a className="button-raven" href="#platform">Creators</a>
+            <a className="button-raven is-solid" href="https://getping.today">Get Ping!</a>
+            <a className="button-raven is-solid" href="#platform">Creators</a>
           </div>
-          <a className="mt-8 block text-[16px] text-white/50" href="#about">Scroll to learn more...</a>
+          <a className="mt-8 block text-[12px] uppercase tracking-[0.12em] text-white/50" href="#about">Scroll to learn more...</a>
         </div>
       </div>
     </header>
@@ -406,7 +423,7 @@ function Footer() {
           Our mission is to bridge physical connection and digital identity. Ping! is built for identity, portfolios, and real-world network intelligence.
         </p>
         <div className="text-[12px] uppercase tracking-[0.16em] text-white/60">What we do<br />Markets<br />Industry</div>
-        <div className="text-[12px] uppercase tracking-[0.16em] text-white/60">About<br />Why us?<br />Contact</div>
+        <div className="text-[12px] uppercase tracking-[0.16em] text-white/60">About<br />Why us?<br />Contact<br /><br />designed + developed by black peak</div>
       </div>
     </footer>
   );
@@ -453,9 +470,12 @@ export function PingStorePage(_: PingStorePageProps) {
         body { background: #000000; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
         .section { scroll-snap-align: start; scroll-snap-stop: always; }
         .display-type {
-          font-family: "Arial Narrow", "Impact", "Rubik Variable", ui-sans-serif, system-ui, sans-serif;
-          letter-spacing: 0.01em;
-          font-stretch: condensed;
+          font-family: Monaco, "Lucida Console", "Andale Mono", ui-monospace, monospace;
+          letter-spacing: -0.08em;
+          font-weight: 700;
+          text-transform: uppercase;
+          transform: scaleX(1);
+          transform-origin: left center;
         }
         .mono-title {
           font-family: "Courier New", ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -475,6 +495,17 @@ export function PingStorePage(_: PingStorePageProps) {
           transition: border-color 180ms ease, color 180ms ease;
         }
         .button-raven:hover { border-color: ${accent}; color: ${accent}; }
+        .button-raven.is-solid {
+          border-color: ${accent};
+          background: ${accent};
+          color: #000000;
+          font-weight: 800;
+        }
+        .button-raven.is-solid:hover {
+          background: #ffffff;
+          border-color: #ffffff;
+          color: #000000;
+        }
       `}</style>
     </main>
   );
