@@ -7,36 +7,27 @@ type PingStorePageProps = {
   variant?: "fluid";
 };
 
-type RingSeed = {
-  position: [number, number, number];
-  rotation: [number, number, number];
-  scale: number;
-  spin: [number, number, number];
-  floatPhase: number;
+type Trace = {
+  angle: number;
+  length: number;
+  x: number;
+  y: number;
+  width: number;
 };
 
-const sectionIds = ["top", "friction", "specs", "creators", "strategy"];
+const accent = "#00ff66";
+const sectionIds = ["top", "about", "markets", "platform", "why"];
 
-const friction = [
-  ["The In-Person Problem", "Over 27 billion paper business cards are printed globally every year, yet 88% are discarded within a single week. Physical networking triggers lost cards, awkward QR-code camera fumbles, and cold dead-ends."],
-  ["The Digital Problem", "Professional networks are saturated with digital noise. Individual identities remain highly fragmented across social networks, portfolios, links, and calendars with no single way to consolidate them."],
-  ["The Solution", "Ping! bridges the physical world and the digital trail. A single hardware tap natively transfers a unified, customizable profile containing your contact details, socials, and work instantly."],
+const marketCards = [
+  ["[ 01 ]", "Identity Markets", "Native NFC profile transfer for conferences, coworking rooms, clubs, and campus events."],
+  ["[ 02 ]", "Hardware Layer", "Ultra-lightweight titanium ring form factor at 2.5g with a thin 2mm structural profile."],
+  ["[ 03 ]", "Connection Graph", "Relationship software that consolidates contacts, socials, portfolios, and links into one tap."],
 ];
 
-const specs = [
-  ["Material Form Factor", "Ultra-lightweight pure titanium build weighing only 2.5g with an exceptionally thin 2mm structural profile. Fully water-resistant and scratch-resilient."],
-  ["Ubiquitous NFC Layer", "Built-in native NFC loop architecture that reads automatically on every modern iOS and Android device right out of the box—no external application installation required to receive a profile."],
-  ["Technical Moat Layer", "Developing a proprietary Ring-to-Ring BLE firmware communication architecture, allowing physical hardware nodes to log mutual connections natively without a mobile device intermediating the interaction."],
-];
-
-const creators = [
-  ["Vaness “Reece” Gardner", "Founder & CEO: Repeat founder working at the intersection of applied AI and hardware entrepreneurship. Pioneer of text-to-image-to-3D asset pipelines at Babson College, where he launched the initial ring concept. Founder of The Generator, scaling to 1,000+ members across MIT, Harvard, and Northeastern networks."],
-  ["Gaspard Seuge", "Co-Founder & CPO: Serial product architect and alumnus of HEC Paris. Formerly growth lead at consumer AI startup MWM AI and AI Engineer at multi-billion dollar platform Sorare. Engineered the client-facing web application and native iOS mobile application frameworks from scratch."],
-];
-
-const strategy = [
-  ["Hardware Portal", "Premium one-time purchase of the physical titanium smart ring acting as the permanent identity key."],
-  ["Relationship Platform", "Freemium software architecture. Free users access standard profile compilation and contact sharing. Premium tiers unlock advanced deep-network visualization toolsets, predictive interaction tracking, and algorithmic follow-up reminders."],
+const whyCards = [
+  ["Integrity", "Ping! is identity hardware, not a health tracker. The ring exists purely to bridge real-world connection to a chosen digital profile."],
+  ["Ubiquity", "Every modern iPhone and Android device can receive a Ping! tap natively through NFC. No external receiver app is required."],
+  ["Expediency", "A single tap removes lost cards, QR-code camera fumbles, fragmented links, and cold follow-up dead ends."],
 ];
 
 function seededRandom(seed: number) {
@@ -44,16 +35,17 @@ function seededRandom(seed: number) {
   return x - Math.floor(x);
 }
 
-function useScrollProgress() {
+function useScrollState() {
   const [state, setState] = useState({ active: 0, progress: 0 });
 
   useEffect(() => {
     const update = () => {
-      const max = document.documentElement.scrollHeight - window.innerHeight;
-      const progress = max > 0 ? window.scrollY / max : 0;
+      const max = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+      const progress = window.scrollY / max;
       const active = Math.min(sectionIds.length - 1, Math.max(0, Math.round(progress * (sectionIds.length - 1))));
       setState({ active, progress });
     };
+
     update();
     window.addEventListener("scroll", update, { passive: true });
     window.addEventListener("resize", update);
@@ -66,148 +58,24 @@ function useScrollProgress() {
   return state;
 }
 
-function CircuitBoard({ progress }: { progress: number }) {
-  const group = useRef<THREE.Group>(null);
-  const traces = useMemo(() => {
-    return Array.from({ length: 128 }, (_, index) => {
-      const horizontal = index % 3 !== 0;
-      const x = (seededRandom(index * 3.11) - 0.5) * 72;
-      const y = (seededRandom(index * 8.37) - 0.5) * 42;
-      const length = 3 + seededRandom(index * 5.4) * 13;
-      const width = 0.025 + seededRandom(index * 2.2) * 0.04;
-      return { horizontal, length, width, x, y };
-    });
-  }, []);
-
-  useFrame(({ clock }) => {
-    if (!group.current) return;
-    const t = clock.elapsedTime;
-    group.current.rotation.x = -1.12 + progress * 0.34;
-    group.current.rotation.z = Math.sin(t * 0.08) * 0.02;
-    group.current.position.z = -8 + progress * 4.8;
-    group.current.position.y = -2.55 - progress * 0.9;
-  });
-
-  return (
-    <group ref={group} position={[0, -2.55, -8]} rotation={[-1.12, 0, 0]}>
-      <mesh receiveShadow>
-        <planeGeometry args={[76, 46, 1, 1]} />
-        <meshStandardMaterial color="#031c0e" emissive="#031c0e" emissiveIntensity={0.36} roughness={0.44} metalness={0.18} />
-      </mesh>
-      <gridHelper args={[76, 76, "#00ff66", "#064820"]} position={[0, 0, 0.055]} />
-      {traces.map((trace, index) => (
-        <mesh key={index} position={[trace.x, trace.y, 0.08]} rotation={[0, 0, trace.horizontal ? 0 : Math.PI / 2]}>
-          <boxGeometry args={[trace.length, trace.width, 0.025]} />
-          <meshStandardMaterial color="#00ff66" emissive="#00ff66" emissiveIntensity={0.52} toneMapped={false} />
-        </mesh>
-      ))}
-      {Array.from({ length: 42 }).map((_, index) => (
-        <mesh key={`node-${index}`} position={[(seededRandom(index * 4.2) - 0.5) * 70, (seededRandom(index * 9.1) - 0.5) * 40, 0.1]}>
-          <cylinderGeometry args={[0.085, 0.085, 0.035, 18]} />
-          <meshStandardMaterial color="#00ff66" emissive="#00ff66" emissiveIntensity={0.62} toneMapped={false} />
-        </mesh>
-      ))}
-    </group>
-  );
-}
-
-function RingMesh({ seed }: { seed: RingSeed }) {
-  const ref = useRef<THREE.Mesh>(null);
-
-  useFrame(({ clock }) => {
-    if (!ref.current) return;
-    const t = clock.elapsedTime;
-    ref.current.rotation.x += seed.spin[0];
-    ref.current.rotation.y += seed.spin[1];
-    ref.current.rotation.z += seed.spin[2];
-    ref.current.position.y = seed.position[1] + Math.sin(t * 0.72 + seed.floatPhase) * 0.18;
-  });
-
-  return (
-    <mesh ref={ref} castShadow position={seed.position} rotation={seed.rotation} scale={seed.scale}>
-      <torusGeometry args={[0.5, 0.085, 32, 128]} />
-      <meshStandardMaterial color="#050505" roughness={0.15} metalness={0.9} envMapIntensity={1.8} />
-    </mesh>
-  );
-}
-
-function RingField({ progress }: { progress: number }) {
-  const rig = useRef<THREE.Group>(null);
-  const hero = useRef<THREE.Group>(null);
-  const seeds = useMemo<RingSeed[]>(() => {
-    return Array.from({ length: 30 }, (_, index) => ({
-      position: [
-        (seededRandom(index * 4.7) - 0.5) * 18,
-        -0.1 + seededRandom(index * 2.8) * 5.2,
-        -4 - seededRandom(index * 8.1) * 11,
-      ],
-      rotation: [seededRandom(index * 3.3) * Math.PI, seededRandom(index * 5.9) * Math.PI, seededRandom(index * 8.2) * Math.PI],
-      scale: 0.38 + seededRandom(index * 1.71) * 0.9,
-      spin: [
-        0.0008 + seededRandom(index * 2.12) * 0.004,
-        0.001 + seededRandom(index * 4.22) * 0.006,
-        0.0006 + seededRandom(index * 5.32) * 0.003,
-      ],
-      floatPhase: seededRandom(index * 9.13) * Math.PI * 2,
-    }));
-  }, []);
-
-  useFrame(({ clock }) => {
-    const t = clock.elapsedTime;
-    if (rig.current) {
-      rig.current.rotation.y = progress * Math.PI * 0.52;
-      rig.current.position.z = progress * 5.2;
-      rig.current.position.x = Math.sin(progress * Math.PI) * -1.4;
-    }
-    if (hero.current) {
-      hero.current.rotation.x = -0.24 + progress * 1.2 + Math.sin(t * 0.4) * 0.04;
-      hero.current.rotation.y = progress * Math.PI * 1.25 + t * 0.08;
-      hero.current.position.x = 2.25 - progress * 4.4;
-      hero.current.position.y = 1.15 + Math.sin(t * 0.5) * 0.08;
-      hero.current.position.z = -1.4 - progress * 3.4;
-      const scale = 1.9 - progress * 0.45;
-      hero.current.scale.setScalar(scale);
-    }
-  });
-
-  return (
-    <group>
-      <group ref={hero}>
-        <mesh castShadow>
-          <torusGeometry args={[0.76, 0.13, 40, 160]} />
-          <meshStandardMaterial color="#050505" roughness={0.12} metalness={0.94} envMapIntensity={2} />
-        </mesh>
-        <mesh scale={1.18}>
-          <torusGeometry args={[0.76, 0.012, 8, 160]} />
-          <meshStandardMaterial color="#00ff66" emissive="#00ff66" emissiveIntensity={1.4} toneMapped={false} />
-        </mesh>
-      </group>
-      <group ref={rig}>
-        {seeds.map((seed, index) => <RingMesh key={index} seed={seed} />)}
-      </group>
-    </group>
-  );
-}
-
-function Scene({ onReady, progress }: { onReady: () => void; progress: number }) {
+function CircuitScene({ onReady, progress }: { onReady: () => void; progress: number }) {
   return (
     <div className="fixed inset-0 z-0 h-screen w-screen bg-black">
       <Canvas
         className="h-full w-full"
-        dpr={[1, 1.75]}
+        dpr={[1, 1.6]}
         gl={{ antialias: true, alpha: false, powerPreference: "high-performance" }}
         onCreated={onReady}
         shadows
       >
-        <PerspectiveCamera makeDefault fov={45} position={[0, 2.4, 6.2]} />
+        <PerspectiveCamera makeDefault fov={40} position={[0, 3.65, 7.7]} />
         <color attach="background" args={["#000000"]} />
-        <fog attach="fog" args={["#000000", 9, 28]} />
-        <ambientLight intensity={0.32} />
-        <directionalLight castShadow color="#ffffff" intensity={1.6} position={[3, 6, 4]} />
-        <pointLight color="#00ff66" intensity={130} distance={18} position={[-3, 1.8, 2]} />
-        <pointLight color="#00ff66" intensity={70} distance={24} position={[5, 0.3, -8]} />
-        <CircuitBoard progress={progress} />
-        <RingField progress={progress} />
+        <fog attach="fog" args={["#000000", 8, 26]} />
+        <ambientLight intensity={0.18} />
+        <directionalLight castShadow color="#ffffff" intensity={1.25} position={[4.5, 7, 5]} />
+        <pointLight color={accent} intensity={165} distance={18} position={[2.8, 1.1, 1.8]} />
+        <pointLight color={accent} intensity={95} distance={20} position={[-5, -1.2, -7]} />
+        <HardwareStage progress={progress} />
         <Environment preset="night" />
         <Preload all />
       </Canvas>
@@ -215,124 +83,342 @@ function Scene({ onReady, progress }: { onReady: () => void; progress: number })
   );
 }
 
-function BootOverlay({ visible }: { visible: boolean }) {
-  const [line, setLine] = useState(0);
-  const lines = ["Loading Protocols", "Loading Ping", "System Init // v2.26", "Circuit scene online"];
+function HardwareStage({ progress }: { progress: number }) {
+  const stage = useRef<THREE.Group>(null);
+  const chip = useRef<THREE.Group>(null);
+  const ring = useRef<THREE.Group>(null);
+
+  const traces = useMemo<Trace[]>(() => {
+    return Array.from({ length: 110 }, (_, index) => ({
+      angle: (seededRandom(index * 2.71) - 0.5) * 0.42,
+      length: 3 + seededRandom(index * 5.43) * 14,
+      x: (seededRandom(index * 9.91) - 0.5) * 68,
+      y: (seededRandom(index * 4.19) - 0.5) * 37,
+      width: 0.018 + seededRandom(index * 7.2) * 0.038,
+    }));
+  }, []);
+
+  const nodes = useMemo(() => {
+    return Array.from({ length: 38 }, (_, index) => ({
+      x: (seededRandom(index * 3.2) - 0.5) * 64,
+      y: (seededRandom(index * 8.4) - 0.5) * 34,
+      s: 0.05 + seededRandom(index * 6.1) * 0.08,
+    }));
+  }, []);
+
+  useFrame(({ clock }) => {
+    const t = clock.elapsedTime;
+    if (stage.current) {
+      stage.current.rotation.x = -1.09 + progress * 0.23;
+      stage.current.rotation.z = -0.08 + Math.sin(t * 0.08) * 0.025 + progress * 0.12;
+      stage.current.position.y = -3.18 - progress * 0.35;
+      stage.current.position.z = -8.5 + progress * 3.7;
+    }
+    if (chip.current) {
+      chip.current.position.x = 5.05 - progress * 6.65;
+      chip.current.position.y = 1.74 + Math.sin(t * 0.44) * 0.04;
+      chip.current.position.z = -1.25 - progress * 1.25;
+      chip.current.rotation.z = -0.1 + progress * 0.42;
+      chip.current.rotation.y = -0.1 + progress * 0.62;
+      chip.current.scale.setScalar(1.05);
+    }
+    if (ring.current) {
+      ring.current.rotation.x = 1.25 + progress * 1.4;
+      ring.current.rotation.y = t * 0.18 + progress * 2.2;
+      ring.current.rotation.z = 0.15 + Math.sin(t * 0.4) * 0.06;
+      ring.current.position.x = 5.05 - progress * 6.65;
+      ring.current.position.y = 2.74 + Math.sin(t * 0.52) * 0.08;
+      ring.current.position.z = -1.08 - progress * 1.25;
+      ring.current.scale.setScalar(1.12);
+    }
+  });
+
+  return (
+    <group>
+      <group ref={stage} position={[0, -3.18, -8.5]} rotation={[-1.09, 0, -0.08]}>
+        <mesh receiveShadow>
+          <planeGeometry args={[74, 44]} />
+          <meshStandardMaterial color="#021006" emissive="#031c0e" emissiveIntensity={0.28} metalness={0.28} roughness={0.48} />
+        </mesh>
+
+        {traces.map((trace, index) => (
+          <mesh key={`trace-${index}`} position={[trace.x, trace.y, 0.055]} rotation={[0, 0, trace.angle]}>
+            <boxGeometry args={[trace.length, trace.width, 0.022]} />
+            <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.72} toneMapped={false} />
+          </mesh>
+        ))}
+
+        {nodes.map((node, index) => (
+          <mesh key={`node-${index}`} position={[node.x, node.y, 0.075]}>
+            <cylinderGeometry args={[node.s, node.s, 0.03, 18]} />
+            <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.9} toneMapped={false} />
+          </mesh>
+        ))}
+      </group>
+
+      <group ref={chip} position={[5.05, 1.74, -1.25]} rotation={[0, -0.1, -0.1]}>
+        <mesh castShadow receiveShadow>
+          <boxGeometry args={[3.15, 0.46, 2.15]} />
+          <meshStandardMaterial color="#080908" metalness={0.75} roughness={0.22} emissive="#07170d" emissiveIntensity={0.1} />
+        </mesh>
+        <mesh position={[0, -0.28, 0]}>
+          <boxGeometry args={[3.32, 0.32, 2.28]} />
+          <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.75} toneMapped={false} roughness={0.3} />
+        </mesh>
+        {Array.from({ length: 16 }).map((_, index) => (
+          <mesh key={`pin-${index}`} position={[-1.45 + (index % 8) * 0.41, -0.09, index < 8 ? -1.25 : 1.25]}>
+            <boxGeometry args={[0.11, 0.15, 0.36]} />
+            <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={1.1} toneMapped={false} />
+          </mesh>
+        ))}
+      </group>
+
+      <group ref={ring} position={[5.05, 2.74, -1.08]}>
+        <mesh castShadow>
+          <torusGeometry args={[0.86, 0.14, 40, 180]} />
+          <meshStandardMaterial color="#030303" metalness={0.96} roughness={0.1} envMapIntensity={2.35} />
+        </mesh>
+        <mesh scale={1.14}>
+          <torusGeometry args={[0.86, 0.012, 8, 180]} />
+          <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={1.85} toneMapped={false} />
+        </mesh>
+      </group>
+    </group>
+  );
+}
+
+function Loader({ visible }: { visible: boolean }) {
+  const [percent, setPercent] = useState(0);
 
   useEffect(() => {
     if (!visible) return;
-    const timer = window.setInterval(() => setLine((value) => Math.min(value + 1, lines.length - 1)), 360);
+    const timer = window.setInterval(() => setPercent((value) => Math.min(100, value + 5)), 45);
     return () => window.clearInterval(timer);
-  }, [lines.length, visible]);
+  }, [visible]);
 
   if (!visible) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col justify-between bg-black p-5 font-mono text-white md:p-8">
-      <div className="text-[10px] uppercase tracking-[0.28em] text-white/70">Loading Protocols</div>
-      <div>
-        {lines.slice(0, line + 1).map((item) => (
-          <p className="border-b border-[#00ff66]/45 py-4 text-xl uppercase tracking-[0.08em] text-white md:text-5xl" key={item}>
-            {item}
-          </p>
-        ))}
+    <div className="fixed inset-0 z-[100] grid place-items-center bg-black text-white" data-boot="true">
+      <div className="w-[248px]">
+        <div className="mb-4 h-[28px] border border-white/25 p-1">
+          <div className="flex h-full items-center bg-white px-2 text-[20px] leading-none text-black" style={{ width: `${percent}%` }}>
+            {percent}%
+          </div>
+        </div>
+        <div className="flex justify-center gap-1 text-[24px] uppercase leading-none tracking-[0.02em]">
+          <span>Loading Protocols</span>
+          <span className="text-[#00ff66]">.....</span>
+        </div>
+        <div className="mt-8 text-center text-[24px] uppercase leading-none">Loading Ping</div>
       </div>
-      <div className="flex justify-between text-[10px] uppercase tracking-[0.25em] text-white/55">
-        <span>Cc 2026, Ping</span>
-        <span>designed + developed by Ping Ring Inc.</span>
-      </div>
+      <div className="absolute bottom-7 left-8 text-[12px] uppercase tracking-[0.08em] text-white/70">Cc 2026, ping</div>
+      <div className="absolute bottom-7 right-8 text-[12px] uppercase tracking-[0.08em] text-white/70">designed + developed by Ping Ring Inc.</div>
     </div>
-  );
-}
-
-function NavRail({ active }: { active: number }) {
-  return (
-    <aside className="fixed bottom-8 left-5 z-30 hidden flex-col gap-4 text-[11px] uppercase tracking-[0.24em] text-white/45 md:flex" data-nav-rail>
-      {["start", "02", "03", "04", "05"].map((item, index) => (
-        <a className={active === index ? "text-[#00ff66]" : "hover:text-white"} href={`#${sectionIds[index]}`} key={item}>
-          {item}
-        </a>
-      ))}
-    </aside>
   );
 }
 
 function Header() {
   return (
-    <header className="fixed left-0 right-0 top-0 z-30 flex items-center justify-between px-5 py-5 text-[11px] uppercase tracking-[0.2em] text-white md:px-7">
-      <a className="text-[#00ff66]" href="#top">PING!</a>
-      <nav className="hidden items-center gap-8 text-white/70 md:flex">
+    <header className="fixed left-0 top-0 z-40 flex h-[78px] w-full items-center border-b border-white/10 bg-black/72 px-8 backdrop-blur-sm">
+      <a className="mr-auto flex items-center gap-3 text-[22px] font-bold uppercase tracking-[0.02em]" href="#top">
+        <span className="grid h-5 w-9 grid-cols-3 gap-[2px]">
+          {Array.from({ length: 9 }).map((_, index) => (
+            <span className="h-[5px] w-[10px] -skew-x-12 bg-white" key={index} />
+          ))}
+        </span>
+        Ping
+      </a>
+      <nav className="hidden items-center gap-9 text-[12px] uppercase tracking-[0.16em] md:flex">
         <a href="#top">Home</a>
-        <a href="#friction">What we do ▾</a>
-        <a href="#specs">Markets</a>
-        <a href="#creators">About</a>
-        <a href="#strategy">Let&apos;s connect →</a>
+        <a href="#about">What we do <span className="text-[#00ff66]">▾</span></a>
+        <a href="#markets">Markets</a>
+        <a href="#platform">About</a>
+        <a href="#why">Careers</a>
       </nav>
-      <a className="md:hidden" href="#strategy">menu</a>
+      <a className="ml-auto hidden border border-white/20 px-8 py-4 text-[12px] uppercase tracking-[0.25em] md:block" href="https://getping.today">
+        Let&apos;s connect →
+      </a>
+      <a className="ml-auto text-[12px] uppercase tracking-[0.2em] md:hidden" href="#about">menu</a>
     </header>
   );
 }
 
-function HeroPanel() {
+function ProgressRail({ active }: { active: number }) {
+  const labels = ["01", "about", "markets", "04", "05"];
+
   return (
-    <section className="relative grid min-h-screen snap-start content-end px-5 pb-10 pt-24 md:px-7" id="top">
-      <div className="max-w-6xl">
-        <div className="mb-8 grid max-w-xl grid-cols-3 gap-px border border-[#00ff66]/45 bg-[#00ff66]/45 text-[10px] uppercase tracking-[0.2em] text-white/80">
-          {["Identity", "NFC", "Hardware"].map((item) => <span className="bg-black/65 p-3" key={item}>{item}</span>)}
-        </div>
-        <h1 className="max-w-full text-[21vw] font-normal uppercase leading-[0.78] text-white md:text-[9.2vw]">
-          Identity<br />
-          <span className="text-[#00ff66]">Layered</span><br />
-          Natively
+    <aside className="fixed right-8 top-1/2 z-40 hidden -translate-y-1/2 md:block" data-nav-rail>
+      <div className="absolute left-[48px] top-4 h-[325px] w-px bg-white/25" />
+      <div className="absolute left-[46px] top-4 h-2 w-2 rounded-full bg-[#00ff66]" />
+      <div className="absolute left-[46px] top-[96px] h-2 w-2 rounded-full bg-[#00ff66]" />
+      <div className="absolute left-[46px] top-[178px] h-2 w-2 rounded-full bg-[#00ff66]" />
+      <div className="absolute left-[47px] top-[260px] h-[5px] w-[5px] rounded-full bg-white/40" />
+      <div className="flex flex-col gap-[52px]">
+        {labels.map((label, index) => (
+          <a
+            className={`relative grid h-[29px] min-w-[36px] place-items-center border px-3 text-[10px] uppercase tracking-[0.1em] ${
+              active === index ? "border-white text-white" : "border-white/35 text-white"
+            }`}
+            href={`#${sectionIds[index]}`}
+            key={label}
+          >
+            {active === index ? label : label.replace("about", "02").replace("markets", "03")}
+          </a>
+        ))}
+      </div>
+    </aside>
+  );
+}
+
+function HeroSection() {
+  return (
+    <header className="section relative min-h-screen pt-[78px]" id="top">
+      <div className="mx-auto flex min-h-[calc(100vh-78px)] w-[75vw] max-w-[1080px] flex-col justify-between py-[74px]">
+        <h1 className="display-type max-w-[1080px] text-[78px] uppercase leading-[0.76] text-white md:text-[135px]">
+          <span className="ml-[14%] block">TAP INTO</span>
+          <span className="ml-[74%] block text-[#00ff66]">REAL</span>
+          <span className="ml-[30%] block">CONNECTION</span>
         </h1>
-        <div className="mt-8 grid gap-4 md:grid-cols-[0.44fr_0.56fr]">
-          <h2 className="text-2xl uppercase leading-none text-white md:text-5xl">we are ping</h2>
-          <p className="max-w-2xl text-sm uppercase leading-6 text-white/72 md:text-base">
-            Proprietary digital identity execution layered directly over ultra-low-latency physical hardware infrastructure.
+        <div className="ml-auto w-full max-w-[442px] pb-1">
+          <h2 className="mono-title text-[24px] uppercase leading-none">we are ping</h2>
+          <p className="mt-5 text-[16px] leading-6 text-white">
+            Ping! bridges physical connection to your digital identity trail through ultra-lightweight NFC ring hardware.
           </p>
+          <div className="mt-5 grid grid-cols-2 gap-5">
+            <a className="button-raven" href="https://getping.today">Partnerships</a>
+            <a className="button-raven" href="#platform">Creators</a>
+          </div>
+          <a className="mt-8 block text-[16px] text-white/50" href="#about">Scroll to learn more...</a>
         </div>
       </div>
-      <p className="absolute bottom-8 right-7 hidden text-[10px] uppercase tracking-[0.22em] text-white/55 md:block">Scroll to learn more...</p>
+    </header>
+  );
+}
+
+function AboutSection() {
+  return (
+    <section className="section min-h-screen" id="about">
+      <div className="mx-auto flex min-h-screen w-[75vw] max-w-[1080px] items-center">
+        <div className="w-full max-w-[442px]">
+          <h2 className="mono-title text-[24px] uppercase leading-none">About u5</h2>
+          <p className="mt-5 text-[16px] leading-6 text-white">
+            Ping! is an NFC-enabled smart ring designed purely for identity, portfolios, and bridging physical in-person connection to your digital trail.
+          </p>
+          <p className="mt-5 text-[16px] leading-6 text-white">
+            Built after the rise of AI made digital interactions feel less human, Ping! turns a real-world moment into one clean profile tap.
+          </p>
+          <div className="mt-8 text-[12px] uppercase tracking-[0.22em] text-white/55">
+            Verified by <span className="text-[#00ff66]">*</span>
+          </div>
+          <div className="mt-8 grid grid-cols-2 gap-x-12 gap-y-8 text-[13px] font-bold uppercase tracking-[0.12em] text-white">
+            <span>Babson AI Lab</span>
+            <span>HEC Paris</span>
+            <span>Sorare</span>
+            <span>MWM AI</span>
+          </div>
+        </div>
+      </div>
     </section>
   );
 }
 
-function SplitPanel({
-  eyebrow,
-  id,
-  rows,
-  title,
-}: {
-  eyebrow: string;
-  id: string;
-  rows: string[][];
-  title: string;
-}) {
+function MarketsSection() {
   return (
-    <section className="grid min-h-screen snap-start border-t border-[#00ff66]/45 bg-black/12 md:grid-cols-[0.38fr_0.62fr]" id={id}>
-      <div className="flex flex-col justify-between border-b border-[#00ff66]/40 p-5 pt-24 md:border-b-0 md:border-r md:p-7 md:pt-28">
-        <p className="text-[10px] uppercase tracking-[0.3em] text-[#00ff66]">{eyebrow}</p>
-        <h2 className="mt-10 text-5xl font-normal uppercase leading-[0.86] text-white md:text-7xl">{title}</h2>
-      </div>
-      <div className="divide-y divide-[#00ff66]/35 pt-0 md:pt-20">
-        {rows.map(([label, body]) => (
-          <article className="p-5 md:p-7" key={label}>
-            <p className="text-[10px] uppercase tracking-[0.28em] text-[#00ff66]">{label}</p>
-            <p className="mt-7 max-w-4xl text-lg uppercase leading-[1.22] text-white md:text-3xl">{body}</p>
-          </article>
-        ))}
+    <section className="section min-h-screen pt-[78px]" id="markets">
+      <div className="mx-auto flex min-h-[calc(100vh-78px)] w-[75vw] max-w-[1080px] flex-col justify-center">
+        <div className="ml-auto max-w-[406px] pb-24">
+          <h2 className="mono-title text-[24px] uppercase leading-none">Markets we operate in</h2>
+          <p className="mt-5 text-[16px] leading-6 text-white">Continuously mapping identity moments across physical and digital networks.</p>
+        </div>
+        <div className="grid border border-white/12 md:grid-cols-3">
+          {marketCards.map(([number, title, body]) => (
+            <article className="min-h-[288px] border-b border-white/12 p-8 md:border-b-0 md:border-r last:md:border-r-0" key={title}>
+              <p className="text-[12px] uppercase tracking-[0.2em] text-[#00ff66]">{number}</p>
+              <h3 className="display-type mt-6 text-[42px] uppercase leading-[0.95] text-white">{title}</h3>
+              <p className="mt-6 text-[16px] leading-6 text-white">{body}</p>
+            </article>
+          ))}
+        </div>
       </div>
     </section>
+  );
+}
+
+function PlatformSection() {
+  return (
+    <section className="section min-h-screen pt-[78px]" id="platform">
+      <div className="mx-auto grid min-h-[calc(100vh-78px)] w-[75vw] max-w-[1080px] content-center gap-10 md:grid-cols-[0.42fr_0.58fr]">
+        <div>
+          <h2 className="mono-title text-[24px] uppercase leading-none">Trading on</h2>
+          <p className="mt-5 text-[16px] leading-6 text-white">
+            Ultra-lightweight titanium hardware and a relationship platform designed for modern in-person identity exchange.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 border border-white/12 md:grid-cols-3">
+          {["2.5g titanium", "2mm profile", "native NFC", "no app to receive", "portfolio links", "BLE roadmap"].map((item) => (
+            <div className="grid h-28 place-items-center border-b border-r border-white/12 p-4 text-center text-[12px] uppercase tracking-[0.16em] text-white/80" key={item}>
+              {item}
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function IndustrySection() {
+  return (
+    <section className="section grid min-h-screen place-items-center" id="why">
+      <div className="mx-auto w-[75vw] max-w-[1080px]">
+        <h2 className="display-type text-center text-[72px] uppercase leading-[0.82] md:text-[132px]">powering identity</h2>
+        <p className="mx-auto mt-8 max-w-[520px] text-center text-[18px] leading-7 text-white">
+          Wide, competitive, and uninterrupted coverage of real-world connection moments across events, campuses, clubs, and coworking rooms.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function WhySection() {
+  return (
+    <section className="section min-h-screen pt-[78px]">
+      <div className="mx-auto flex min-h-[calc(100vh-78px)] w-[75vw] max-w-[1080px] flex-col justify-center">
+        <h2 className="mono-title text-[24px] uppercase leading-none">Why Us?</h2>
+        <div className="mt-12 grid gap-px border border-white/12 bg-white/12 md:grid-cols-3">
+          {whyCards.map(([title, body]) => (
+            <article className="bg-black/72 p-8" key={title}>
+              <h3 className="display-type text-[42px] uppercase leading-none text-white">{title}</h3>
+              <p className="mt-6 text-[16px] leading-6 text-white">{body}</p>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Footer() {
+  return (
+    <footer className="relative z-10 border-t border-white/10 bg-black px-8 py-12 text-white">
+      <div className="mx-auto grid w-[75vw] max-w-[1080px] gap-8 md:grid-cols-[0.5fr_0.25fr_0.25fr]">
+        <p className="max-w-xl text-[16px] leading-6 text-white/75">
+          Our mission is to bridge physical connection and digital identity. Ping! is built for identity, portfolios, and real-world network intelligence.
+        </p>
+        <div className="text-[12px] uppercase tracking-[0.16em] text-white/60">What we do<br />Markets<br />Industry</div>
+        <div className="text-[12px] uppercase tracking-[0.16em] text-white/60">About<br />Why us?<br />Contact</div>
+      </div>
+    </footer>
   );
 }
 
 export function PingStorePage(_: PingStorePageProps) {
-  const { active, progress } = useScrollProgress();
+  const { active, progress } = useScrollState();
   const [ready, setReady] = useState(false);
   const [bootDone, setBootDone] = useState(false);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setBootDone(true), 2300);
+    const timer = window.setTimeout(() => setBootDone(true), 2600);
     return () => window.clearTimeout(timer);
   }, []);
 
@@ -344,44 +430,51 @@ export function PingStorePage(_: PingStorePageProps) {
   }, [bootDone, ready]);
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-black font-mono text-white">
-      <Scene onReady={() => setReady(true)} progress={progress} />
-      <BootOverlay visible={!ready || !bootDone} />
+    <main className="min-h-screen overflow-x-hidden bg-black text-white">
+      <CircuitScene onReady={() => setReady(true)} progress={progress} />
+      <Loader visible={!ready || !bootDone} />
       <Header />
-      <NavRail active={active} />
+      <ProgressRail active={active} />
 
-      <div className="relative z-10 scroll-smooth md:snap-y md:snap-mandatory">
-        <HeroPanel />
-
-        <div className="overflow-hidden border-y border-[#00ff66]/45 bg-black/55 py-4">
-          <div className="ping-marquee flex min-w-[260vw] whitespace-nowrap text-[10px] uppercase tracking-[0.18em] text-[#00ff66] md:w-[200%] md:tracking-[0.26em]">
-            <span className="w-1/2">2.5G TITANIUM // 2MM PROFILE // NATIVE NFC // NO RECEIVER APP // IDENTITY KEY // RING-TO-RING BLE ROADMAP //</span>
-            <span className="w-1/2">2.5G TITANIUM // 2MM PROFILE // NATIVE NFC // NO RECEIVER APP // IDENTITY KEY // RING-TO-RING BLE ROADMAP //</span>
-          </div>
-        </div>
-
-        <SplitPanel eyebrow="About us" id="friction" rows={friction} title="Physical identity infrastructure" />
-        <SplitPanel eyebrow="Markets we operate in" id="specs" rows={specs} title="Technical specifications matrix" />
-        <SplitPanel eyebrow="Why Us?" id="creators" rows={creators} title="Ecosystem creators" />
-        <SplitPanel eyebrow="Powering the industry" id="strategy" rows={strategy} title="Revenue and platform strategy" />
-
-        <footer className="grid gap-4 border-t border-[#00ff66]/45 bg-black/75 p-5 text-[10px] uppercase tracking-[0.24em] text-white/70 md:grid-cols-3 md:p-7">
-          <span>Ping Ring Inc.</span>
-          <span>Our mission is to bridge physical connection and digital identity.</span>
-          <a className="text-[#00ff66] md:text-right" href="https://getping.today">Get Ping! →</a>
-        </footer>
+      <div className="relative z-10 md:snap-y md:snap-mandatory">
+        <HeroSection />
+        <AboutSection />
+        <MarketsSection />
+        <PlatformSection />
+        <IndustrySection />
+        <WhySection />
+        <Footer />
       </div>
 
       <style>{`
         *, *::before, *::after { box-sizing: border-box; }
-        html { scroll-behavior: smooth; }
+        html { scroll-behavior: smooth; background: #000000; }
         html, body { max-width: 100%; overflow-x: hidden; }
-        body { background: #000000; }
-        .ping-marquee { animation: ping-marquee 23s linear infinite; }
-        @keyframes ping-marquee {
-          from { transform: translateX(0); }
-          to { transform: translateX(-50%); }
+        body { background: #000000; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+        .section { scroll-snap-align: start; scroll-snap-stop: always; }
+        .display-type {
+          font-family: "Arial Narrow", "Impact", "Rubik Variable", ui-sans-serif, system-ui, sans-serif;
+          letter-spacing: 0.01em;
+          font-stretch: condensed;
         }
+        .mono-title {
+          font-family: "Courier New", ui-monospace, SFMono-Regular, Menlo, monospace;
+          letter-spacing: 0.08em;
+          font-weight: 700;
+        }
+        .button-raven {
+          display: grid;
+          place-items: center;
+          min-height: 36px;
+          border: 1px solid rgba(255,255,255,0.18);
+          color: #ffffff;
+          font-size: 12px;
+          line-height: 1;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+          transition: border-color 180ms ease, color 180ms ease;
+        }
+        .button-raven:hover { border-color: ${accent}; color: ${accent}; }
       `}</style>
     </main>
   );
