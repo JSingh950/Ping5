@@ -4,17 +4,17 @@ import { PingStorePage } from "@/components/PingStorePage";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Ping! — The Fluid Motion Darkmode" },
+      { title: "Ping! — WebGL Identity Protocol" },
       {
         name: "description",
         content:
-          "Ping! by Ping Ring Inc. is an NFC identity ring for portfolios, links, and real-world connection.",
+          "A Raven-inspired WebGL homepage for Ping!, the titanium NFC identity ring by Ping Ring Inc.",
       },
-      { property: "og:title", content: "Ping! — The Fluid Motion Darkmode" },
+      { property: "og:title", content: "Ping! — WebGL Identity Protocol" },
       {
         property: "og:description",
         content:
-          "A fluid darkmode product page for the Ping! NFC identity ring.",
+          "A black, white, and electric-green WebGL product experience with floating titanium smart rings.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -24,5 +24,5 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  return <PingStorePage variant="fluid" />;
+  return <PingStorePage />;
 }

@@ -1,430 +1,370 @@
-import { useMemo, useState } from "react";
-
-type Variant = "matrix" | "lookbook" | "blueprint" | "fluid";
+import { Canvas, useFrame } from "@react-three/fiber";
+import { Environment, PerspectiveCamera, Preload } from "@react-three/drei";
+import type { ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import * as THREE from "three";
 
 type PingStorePageProps = {
-  variant: Variant;
+  variant?: "fluid";
 };
 
-const finishes = [
-  {
-    name: "Signal Black",
-    tone: "bg-neutral-950",
-    detail: "black titanium / mirror edge",
-  },
-  {
-    name: "Raw Titanium",
-    tone: "bg-zinc-300",
-    detail: "brushed silver / 2mm profile",
-  },
-  {
-    name: "Circuit Green",
-    tone: "bg-[#00FF66]",
-    detail: "limited electric accent",
-  },
-];
+type RingSeed = {
+  position: [number, number, number];
+  rotation: [number, number, number];
+  scale: number;
+  spin: [number, number, number];
+  floatPhase: number;
+  floatSpeed: number;
+};
 
 const whyNow = [
   {
-    title: "Real connection is rare again",
-    body: "After years of digital-first interaction and AI-generated noise, people want physical moments that feel human at conferences, coworking spaces, clubs, and campuses.",
+    label: "The In-Person Problem",
+    body: "Over 27 billion paper business cards are printed globally every year, yet 88% are discarded within a single week. Physical networking triggers lost cards, awkward QR-code camera fumbles, and cold dead-ends.",
   },
   {
-    title: "Business cards are functionally dead",
-    body: "More than 27 billion paper business cards are printed globally every year, and 88% are thrown away within a week. Ping! turns the exchange into a tap that cannot be lost in a pocket.",
+    label: "The Digital Problem",
+    body: "Professional networks are saturated with digital noise. Individual identities remain highly fragmented across social networks, portfolios, links, and calendars with no single way to consolidate them.",
   },
   {
-    title: "NFC is already native",
-    body: "Modern iPhone and Android devices read NFC without a scanning app. A single tap can open contacts, socials, portfolios, links, and the digital trail you choose to share.",
+    label: "The Solution",
+    body: "Ping! bridges the physical world and the digital trail. A single hardware tap natively transfers a unified, customizable profile containing your contact details, socials, and work instantly.",
   },
 ];
 
 const specs = [
   {
-    eyebrow: "STRUCTURE",
-    title: "2.5g titanium, built like jewelry.",
-    body: "An ultra-lightweight titanium smart ring with a thin 2mm profile, designed for identity and connection rather than health tracking.",
-    stat: "2.5g",
+    label: "Material Form Factor",
+    body: "Ultra-lightweight pure titanium build weighing only 2.5g with an exceptionally thin 2mm structural profile. Fully water-resistant and scratch-resilient.",
   },
   {
-    eyebrow: "POWER",
-    title: "Zero-charging footprint.",
-    body: "Ping! uses built-in NFC, so the everyday exchange feels instant and native with no battery ritual added to your life.",
-    stat: "0x",
+    label: "Ubiquitous NFC Layer",
+    body: "Built-in native NFC loop architecture that reads automatically on every modern iOS and Android device right out of the box—no external application installation required to receive a profile.",
   },
   {
-    eyebrow: "REACH",
-    title: "Every tap is a live product demo.",
-    body: "Early cohorts scaled beyond 270 active rings, with each in-person tap showing the product to someone new in the wild.",
-    stat: "270+",
+    label: "Technical Moat Layer",
+    body: "Developing a proprietary Ring-to-Ring BLE firmware communication architecture, allowing physical hardware nodes to log mutual connections natively without a mobile device intermediating the interaction.",
   },
 ];
 
-const team = [
+const creators = [
   {
     name: "Vaness “Reece” Gardner",
     role: "Founder & CEO",
-    body: "Former AI specialist at Babson College and Babson alum. Founded The Generator, an AI lab that grew past 1,000 members across the Boston technology landscape, including MIT, Harvard, researchers, venture partners, students, and local business owners.",
-    focus: "Strategic vision, wearable design, supply chain logistics, institutional sales, ecosystem relationships.",
+    body: "Repeat founder working at the intersection of applied AI and hardware entrepreneurship. Pioneer of text-to-image-to-3D asset pipelines at Babson College, where he launched the initial ring concept. Founder of The Generator, scaling to 1,000+ members across MIT, Harvard, and Northeastern networks.",
   },
   {
     name: "Gaspard Seuge",
     role: "Co-Founder & CPO",
-    body: "HEC Paris educated product architect. Former Growth at MWM AI and AI Engineer at Sorare, the multi-billion-dollar fantasy sports web3 platform. Built the Ping! web and iOS apps and helped drive 300K+ organic impressions.",
-    focus: "Software product, brand systems, UX, mobile and web applications, go-to-market strategy.",
+    body: "Serial product architect and alumnus of HEC Paris. Formerly growth lead at consumer AI startup MWM AI and AI Engineer at multi-billion dollar platform Sorare. Engineered the client-facing web application and native iOS mobile application frameworks from scratch.",
   },
 ];
 
-const variants = {
-  matrix: {
-    label: "The Cinematic Matrix",
-    bg: "bg-black",
-    page: "font-sans tracking-tight",
-    nav: "border-[#00FF66]/35 bg-black/85 text-white",
-    heroGrid: "border-[#00FF66]/40",
-    media: "border-[#00FF66]/40 bg-black",
-    panel: "border-[#00FF66]/50 bg-black",
-    title: "text-5xl font-black uppercase leading-[0.86] text-white md:text-7xl lg:text-8xl",
-    subtitle: "text-lg font-semibold uppercase text-white md:text-xl",
-    copy: "text-sm leading-6 text-zinc-400",
-    accent: "text-[#00FF66]",
-    button: "border border-[#00FF66] bg-[#00FF66] px-6 py-4 text-sm font-black uppercase tracking-[0.24em] text-black transition hover:bg-black hover:text-[#00FF66]",
-    secondaryButton: "border border-[#00FF66]/60 px-5 py-4 text-xs font-bold uppercase tracking-[0.22em] text-[#00FF66]",
-    section: "border-t border-[#00FF66]/35",
-    card: "border border-[#00FF66]/35 bg-black",
-    serif: "",
-    mono: "font-mono",
-    round: "rounded-none",
-    ringGlow: "shadow-[0_0_70px_rgba(0,255,102,0.24)]",
+const strategy = [
+  {
+    label: "Hardware Portal",
+    body: "Premium one-time purchase of the physical titanium smart ring acting as the permanent identity key.",
   },
-  lookbook: {
-    label: "The High-End Technical Lookbook",
-    bg: "bg-black",
-    page: "font-sans tracking-tight",
-    nav: "border-white/10 bg-black/75 text-white",
-    heroGrid: "border-white/10",
-    media: "border-white/10 bg-black",
-    panel: "border-white/10 bg-black",
-    title: "font-serif text-5xl leading-[0.95] text-white md:text-7xl lg:text-8xl",
-    subtitle: "font-serif text-2xl leading-tight text-white md:text-4xl",
-    copy: "text-sm leading-7 text-zinc-400",
-    accent: "text-[#00C853]",
-    button: "border border-white bg-white px-6 py-4 text-xs font-semibold uppercase tracking-[0.24em] text-black transition hover:border-[#00C853] hover:bg-[#00C853]",
-    secondaryButton: "px-0 py-4 text-xs uppercase tracking-[0.24em] text-[#00C853]",
-    section: "border-t border-white/10",
-    card: "border-0 bg-transparent",
-    serif: "font-serif",
-    mono: "font-mono",
-    round: "rounded-none",
-    ringGlow: "",
+  {
+    label: "Relationship Platform",
+    body: "Freemium software architecture. Free users access standard profile compilation and contact sharing. Premium tiers unlock advanced deep-network visualization toolsets, predictive interaction tracking, and algorithmic follow-up reminders.",
   },
-  blueprint: {
-    label: "The Functional Blueprint Grid",
-    bg: "bg-black",
-    page: "font-mono tracking-tight",
-    nav: "border-[#00FF66]/45 bg-black text-white",
-    heroGrid: "border-[#00FF66]/45",
-    media: "border-[#00FF66]/45 bg-black",
-    panel: "border-[#00FF66]/45 bg-black",
-    title: "text-4xl font-bold uppercase leading-[0.92] text-white md:text-6xl lg:text-7xl",
-    subtitle: "text-lg font-bold uppercase text-white md:text-2xl",
-    copy: "text-xs leading-6 text-zinc-400",
-    accent: "text-[#00FF66]",
-    button: "border border-[#00FF66] bg-[#00FF66] px-6 py-4 text-xs font-bold uppercase tracking-[0.18em] text-black transition hover:bg-black hover:text-[#00FF66]",
-    secondaryButton: "border border-zinc-700 px-5 py-4 text-xs font-bold uppercase tracking-[0.18em] text-white",
-    section: "border-t border-[#00FF66]/45",
-    card: "border border-zinc-700 bg-black",
-    serif: "",
-    mono: "font-mono",
-    round: "rounded-none",
-    ringGlow: "shadow-[0_0_0_1px_rgba(0,255,102,0.5)]",
-  },
-  fluid: {
-    label: "The Fluid Motion Darkmode",
-    bg: "bg-black",
-    page: "font-sans tracking-tight",
-    nav: "border-white/10 bg-black/75 text-white backdrop-blur-xl",
-    heroGrid: "border-white/10",
-    media: "border-white/10 bg-zinc-950/70",
-    panel: "border-white/10 bg-zinc-950/65 backdrop-blur-xl",
-    title: "text-5xl font-semibold leading-[0.92] text-white md:text-7xl lg:text-8xl",
-    subtitle: "text-xl font-medium leading-tight text-zinc-100 md:text-3xl",
-    copy: "text-sm leading-7 text-zinc-400",
-    accent: "text-[#00FF66]",
-    button: "rounded-full bg-[#00FF66] px-7 py-4 text-sm font-bold text-black transition hover:scale-[1.02] hover:bg-white",
-    secondaryButton: "rounded-full border border-white/15 px-5 py-4 text-xs font-semibold uppercase tracking-[0.2em] text-white",
-    section: "border-t border-white/10",
-    card: "rounded-[2rem] border border-white/10 bg-white/[0.03] backdrop-blur",
-    serif: "",
-    mono: "font-mono",
-    round: "rounded-[2rem]",
-    ringGlow: "shadow-[0_0_100px_rgba(0,255,102,0.2)]",
-  },
-} satisfies Record<Variant, Record<string, string>>;
+];
 
-function RingVisual({
-  variant,
-  tone,
-  label,
-  large = false,
-}: {
-  variant: Variant;
-  tone: string;
-  label: string;
-  large?: boolean;
-}) {
-  const v = variants[variant];
-  const isFluid = variant === "fluid";
-  const isBlueprint = variant === "blueprint";
+function seededRandom(seed: number) {
+  const x = Math.sin(seed) * 10000;
+  return x - Math.floor(x);
+}
+
+function CircuitBoard() {
+  const traces = useMemo(() => {
+    return Array.from({ length: 76 }, (_, index) => {
+      const row = Math.floor(index / 2);
+      const horizontal = index % 2 === 0;
+      const x = (seededRandom(index * 3.11) - 0.5) * 40;
+      const y = (seededRandom(index * 8.37) - 0.5) * 22;
+      const length = 2.6 + seededRandom(index * 5.4) * 7;
+      return { horizontal, length, x, y };
+    });
+  }, []);
+
+  const nodes = useMemo(() => {
+    return Array.from({ length: 38 }, (_, index) => ({
+      x: (seededRandom(index * 6.2) - 0.5) * 40,
+      y: (seededRandom(index * 9.7) - 0.5) * 22,
+      scale: 0.05 + seededRandom(index * 2.2) * 0.08,
+    }));
+  }, []);
 
   return (
-    <div className={`relative isolate flex min-h-[22rem] items-center justify-center overflow-hidden ${v.media} ${v.round}`}>
-      {isFluid ? (
-        <div className="absolute inset-8 rounded-full bg-[radial-gradient(circle_at_45%_42%,rgba(0,255,102,0.36),transparent_44%),radial-gradient(circle_at_60%_70%,rgba(0,200,83,0.22),transparent_42%)] blur-2xl" />
-      ) : null}
-      {isBlueprint ? (
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(0,255,102,.12)_1px,transparent_1px),linear-gradient(90deg,rgba(0,255,102,.12)_1px,transparent_1px)] bg-[size:34px_34px]" />
-      ) : null}
-      <div
-        className={`relative aspect-square ${large ? "w-56 md:w-72" : "w-44 md:w-56"} rounded-full border-[18px] md:border-[24px] ${tone} border-current text-zinc-200 ${v.ringGlow}`}
+    <group rotation={[-1.08, 0, 0]} position={[0, -3.8, -9]}>
+      <mesh receiveShadow>
+        <planeGeometry args={[48, 28, 1, 1]} />
+        <meshStandardMaterial
+          color="#031c0e"
+          emissive="#031c0e"
+          emissiveIntensity={0.18}
+          metalness={0.18}
+          roughness={0.5}
+        />
+      </mesh>
+
+      {traces.map((trace, index) => (
+        <mesh key={`trace-${index}`} position={[trace.x, trace.y, 0.035]} rotation={[0, 0, trace.horizontal ? 0 : Math.PI / 2]}>
+          <boxGeometry args={[trace.length, 0.035, 0.018]} />
+          <meshStandardMaterial color="#00ff66" emissive="#00ff66" emissiveIntensity={0.46} toneMapped={false} />
+        </mesh>
+      ))}
+
+      {nodes.map((node, index) => (
+        <mesh key={`node-${index}`} position={[node.x, node.y, 0.055]}>
+          <cylinderGeometry args={[node.scale, node.scale, 0.026, 16]} />
+          <meshStandardMaterial color="#00ff66" emissive="#00ff66" emissiveIntensity={0.52} toneMapped={false} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+function FloatingRing({ seed }: { seed: RingSeed }) {
+  const ref = useRef<THREE.Mesh>(null);
+
+  useFrame(({ clock }) => {
+    if (!ref.current) return;
+    const t = clock.elapsedTime;
+    ref.current.rotation.x += seed.spin[0];
+    ref.current.rotation.y += seed.spin[1];
+    ref.current.rotation.z += seed.spin[2];
+    ref.current.position.y = seed.position[1] + Math.sin(t * seed.floatSpeed + seed.floatPhase) * 0.22;
+    ref.current.position.x = seed.position[0] + Math.cos(t * seed.floatSpeed * 0.72 + seed.floatPhase) * 0.08;
+  });
+
+  return (
+    <mesh ref={ref} position={seed.position} rotation={seed.rotation} scale={seed.scale} castShadow>
+      <torusGeometry args={[0.44, 0.075, 24, 96]} />
+      <meshStandardMaterial color="#050505" roughness={0.15} metalness={0.9} envMapIntensity={1.4} />
+    </mesh>
+  );
+}
+
+function FloatingRings() {
+  const seeds = useMemo<RingSeed[]>(() => {
+    return Array.from({ length: 28 }, (_, index) => {
+      const band = index / 27;
+      return {
+        position: [
+          (seededRandom(index * 2.7) - 0.5) * 16,
+          0.4 + seededRandom(index * 4.1) * 4.8,
+          -1.8 - band * 10 - seededRandom(index * 7.2) * 3,
+        ],
+        rotation: [seededRandom(index * 3.3) * Math.PI, seededRandom(index * 5.9) * Math.PI, seededRandom(index * 8.2) * Math.PI],
+        scale: 0.5 + seededRandom(index * 1.71) * 1.1,
+        spin: [
+          0.001 + seededRandom(index * 2.12) * 0.004,
+          0.001 + seededRandom(index * 4.22) * 0.006,
+          0.0005 + seededRandom(index * 5.32) * 0.003,
+        ],
+        floatPhase: seededRandom(index * 9.13) * Math.PI * 2,
+        floatSpeed: 0.45 + seededRandom(index * 3.44) * 0.8,
+      };
+    });
+  }, []);
+
+  return (
+    <>
+      {seeds.map((seed, index) => (
+        <FloatingRing key={index} seed={seed} />
+      ))}
+    </>
+  );
+}
+
+function WebGLBackground({ onReady }: { onReady: () => void }) {
+  return (
+    <div className="fixed inset-0 z-0 h-screen w-screen bg-black">
+      <Canvas
+        className="h-full w-full"
+        dpr={[1, 1.75]}
+        gl={{ antialias: true, alpha: false, powerPreference: "high-performance" }}
+        onCreated={onReady}
+        shadows
       >
-        <div className="absolute inset-[22%] rounded-full bg-black" />
-        <div className="absolute left-1/2 top-[-16%] h-10 w-[2px] -translate-x-1/2 bg-[#00FF66]" />
-        <div className="absolute bottom-[-2.75rem] left-1/2 -translate-x-1/2 whitespace-nowrap text-center">
-          <p className={`text-[10px] uppercase tracking-[0.28em] ${v.accent}`}>{label}</p>
+        <PerspectiveCamera makeDefault fov={48} position={[0, 3.3, 7.5]} />
+        <color attach="background" args={["#000000"]} />
+        <fog attach="fog" args={["#000000", 8, 25]} />
+        <ambientLight intensity={0.42} />
+        <directionalLight castShadow color="#ffffff" intensity={1.35} position={[4, 7, 5]} />
+        <pointLight color="#00ff66" intensity={80} position={[-3, 1.5, -2]} distance={16} />
+        <CircuitBoard />
+        <FloatingRings />
+        <Environment preset="night" />
+        <Preload all />
+      </Canvas>
+    </div>
+  );
+}
+
+function BootOverlay({ visible }: { visible: boolean }) {
+  const [line, setLine] = useState(0);
+  const lines = ["Loading Protocols...", "System Init // v2.26", "Compiling NFC Identity Layer", "WebGL Ring Matrix Online"];
+
+  useEffect(() => {
+    if (!visible) return;
+    const timer = window.setInterval(() => setLine((value) => Math.min(value + 1, lines.length - 1)), 420);
+    return () => window.clearInterval(timer);
+  }, [lines.length, visible]);
+
+  if (!visible) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex flex-col justify-between bg-black p-5 font-mono text-white md:p-8">
+      <div className="text-[10px] uppercase tracking-[0.28em] text-[#00ff66]">PING BOOT SEQUENCE</div>
+      <div className="space-y-4">
+        {lines.slice(0, line + 1).map((item) => (
+          <div className="border-b border-[#00ff66]/40 pb-3 text-sm uppercase tracking-[0.16em] md:text-xl" key={item}>
+            {item}
+          </div>
+        ))}
+        <div className="h-1 w-full bg-white/10">
+          <div className="h-full bg-[#00ff66] transition-all duration-500" style={{ width: `${((line + 1) / lines.length) * 100}%` }} />
         </div>
+      </div>
+      <div className="flex justify-between text-[10px] uppercase tracking-[0.25em] text-white/60">
+        <span>Ping Ring Inc.</span>
+        <span>v2.26</span>
       </div>
     </div>
   );
 }
 
-export function PingStorePage({ variant }: PingStorePageProps) {
-  const [finish, setFinish] = useState(finishes[0]);
-  const [openWhy, setOpenWhy] = useState(0);
-  const [activeSpec, setActiveSpec] = useState(0);
-  const v = variants[variant];
+function SectionBlock({
+  children,
+  eyebrow,
+  id,
+  title,
+}: {
+  children: ReactNode;
+  eyebrow: string;
+  id: string;
+  title: string;
+}) {
+  return (
+    <section className="border-t border-[#00ff66]/45" id={id}>
+      <div className="grid min-h-screen md:grid-cols-[0.42fr_0.58fr]">
+        <div className="border-b border-[#00ff66]/35 p-5 md:border-b-0 md:border-r md:p-8">
+          <p className="text-[10px] uppercase tracking-[0.3em] text-[#00ff66]">{eyebrow}</p>
+          <h2 className="mt-8 max-w-xl text-4xl font-normal uppercase leading-[0.9] text-white md:text-7xl">{title}</h2>
+        </div>
+        <div className="divide-y divide-[#00ff66]/35">{children}</div>
+      </div>
+    </section>
+  );
+}
 
-  const heroTagline = useMemo(() => {
-    if (variant === "lookbook") return "A titanium object for the return of real-world identity.";
-    if (variant === "blueprint") return "[OBJECT: NFC IDENTITY RING] engineered for physical-to-digital connection.";
-    if (variant === "fluid") return "Tap into the person in front of you, then carry the connection forward.";
-    return "The NFC identity ring for a world tired of cold digital noise.";
-  }, [variant]);
+function TextRow({ body, label }: { body: string; label: string }) {
+  return (
+    <article className="p-5 md:p-8">
+      <p className="text-[10px] uppercase tracking-[0.28em] text-[#00ff66]">{label}</p>
+      <p className="mt-8 max-w-4xl text-lg uppercase leading-[1.35] text-white md:text-3xl">{body}</p>
+    </article>
+  );
+}
+
+export function PingStorePage(_: PingStorePageProps) {
+  const [canvasReady, setCanvasReady] = useState(false);
+  const [bootDone, setBootDone] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setBootDone(true), 2300);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.style.scrollBehavior = "smooth";
+    document.body.style.overflow = canvasReady && bootDone ? "" : "hidden";
+    return () => {
+      document.body.style.overflow = "";
+      document.documentElement.style.scrollBehavior = "";
+    };
+  }, [bootDone, canvasReady]);
+
+  const bootVisible = !canvasReady || !bootDone;
 
   return (
-    <main className={`${v.bg} ${v.page} min-h-screen text-white`}>
-      <header className={`sticky top-0 z-50 flex items-center justify-between border-b px-5 py-4 md:px-8 ${v.nav}`}>
-        <a href="#top" className="text-sm font-bold uppercase tracking-[0.28em]">
-          Ping!
-        </a>
-        <nav className="hidden items-center gap-8 text-[11px] uppercase tracking-[0.24em] text-zinc-400 md:flex">
-          <a className="transition hover:text-[#00FF66]" href="#why">Why now</a>
-          <a className="transition hover:text-[#00FF66]" href="#specs">Specs</a>
-          <a className="transition hover:text-[#00FF66]" href="#team">Team</a>
-        </nav>
-        <a className={variant === "fluid" ? "rounded-full bg-white px-4 py-2 text-xs font-bold text-black" : `text-xs uppercase tracking-[0.22em] ${v.accent}`} href="#buy">
-          Get Ping!
-        </a>
-      </header>
+    <main className="min-h-screen bg-black font-mono text-white">
+      <WebGLBackground onReady={() => setCanvasReady(true)} />
+      <BootOverlay visible={bootVisible} />
 
-      <section id="top" className={`grid min-h-screen border-b lg:grid-cols-[minmax(0,1.12fr)_minmax(25rem,0.88fr)] ${v.heroGrid}`}>
-        <div className="grid gap-px bg-white/10 p-px lg:grid-cols-2">
-          <div className="lg:col-span-2">
-            <RingVisual variant={variant} tone={finish.tone} label={finish.name} large />
+      <div className="relative z-10">
+        <header className="fixed left-0 right-0 top-0 z-40 grid grid-cols-[1fr_auto_1fr] border-b border-[#00ff66]/45 bg-black/35 px-4 py-4 text-[10px] uppercase tracking-[0.22em] backdrop-blur-sm md:px-7">
+          <a className="text-[#00ff66]" href="#top">PING!</a>
+          <nav className="hidden gap-7 text-white/78 md:flex">
+            <a href="#friction">Friction</a>
+            <a href="#specs">Specs</a>
+            <a href="#creators">Creators</a>
+            <a href="#strategy">Strategy</a>
+          </nav>
+          <a className="justify-self-end text-white" href="#strategy">Get Ping! →</a>
+        </header>
+
+        <section className="grid min-h-screen content-end px-4 pb-8 pt-28 md:px-7" id="top">
+          <div className="max-w-6xl">
+            <p className="mb-6 text-[10px] uppercase tracking-[0.32em] text-[#00ff66]">PING! // Ping Ring Inc.</p>
+            <h1 className="max-w-6xl text-5xl font-normal uppercase leading-[0.85] text-white md:text-8xl lg:text-9xl">
+              Identity Tracked. In-Person Connections Layered Natively.
+            </h1>
+            <p className="mt-7 max-w-2xl border-l border-[#00ff66] pl-5 text-sm uppercase leading-6 text-white md:text-lg">
+              Proprietary digital identity execution layered directly over ultra-low-latency physical hardware infrastructure.
+            </p>
           </div>
-          {finishes.map((item) => (
-            <button
-              key={item.name}
-              className="text-left"
-              onClick={() => setFinish(item)}
-              type="button"
-            >
-              <RingVisual variant={variant} tone={item.tone} label={item.name} />
-            </button>
-          ))}
-        </div>
+        </section>
 
-        <aside className={`lg:sticky lg:top-[57px] lg:h-[calc(100vh-57px)] ${v.panel}`} id="buy">
-          <div className="flex h-full flex-col justify-between gap-10 p-6 md:p-10">
-            <div>
-              <div className={`mb-8 flex items-center justify-between border-b pb-5 ${variant === "matrix" || variant === "blueprint" ? "border-[#00FF66]/35" : "border-white/10"}`}>
-                <span className={`text-[11px] uppercase tracking-[0.28em] ${v.accent}`}>{v.label}</span>
-                <span className={`text-[11px] uppercase tracking-[0.28em] ${variant === "blueprint" ? "text-[#00FF66]" : "text-zinc-500"}`}>NFC / 2.5g</span>
-              </div>
-              <p className={`mb-3 text-sm uppercase tracking-[0.3em] ${v.accent}`}>Ping! by Ping Ring Inc.</p>
-              <h1 className={v.title}>Ping!</h1>
-              <p className={`mt-7 max-w-xl ${v.subtitle}`}>{heroTagline}</p>
-              <p className={`mt-5 max-w-xl ${v.copy}`}>
-                A smart ring designed purely for identity, portfolios, and bridging in-person connection to your digital trail. It is not a health tracker.
-              </p>
-            </div>
-
-            <div className="space-y-8">
-              <div>
-                <div className="mb-4 flex items-center justify-between">
-                  <p className={`text-xs uppercase tracking-[0.24em] ${v.accent}`}>Select finish</p>
-                  <p className="text-xs text-zinc-500">{finish.detail}</p>
-                </div>
-                <div className="grid gap-3">
-                  {finishes.map((item) => (
-                    <button
-                      className={`flex items-center justify-between border px-4 py-4 text-left transition ${
-                        finish.name === item.name
-                          ? "border-[#00FF66] text-white"
-                          : "border-white/12 text-zinc-400 hover:border-[#00FF66]/60 hover:text-white"
-                      } ${variant === "fluid" ? "rounded-full" : "rounded-none"}`}
-                      key={item.name}
-                      onClick={() => setFinish(item)}
-                      type="button"
-                    >
-                      <span className="text-sm font-semibold">{item.name}</span>
-                      <span className={`h-4 w-4 rounded-full border border-white/30 ${item.tone}`} />
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className={`grid grid-cols-3 border text-center ${variant === "matrix" || variant === "blueprint" ? "border-[#00FF66]/35" : "border-white/10"} ${variant === "fluid" ? "rounded-[1.5rem] overflow-hidden" : ""}`}>
-                {["2.5g titanium", "native NFC", "no scan app"].map((item) => (
-                  <div className="border-r border-inherit px-3 py-4 last:border-r-0" key={item}>
-                    <p className={`text-[10px] uppercase tracking-[0.18em] ${variant === "blueprint" ? "text-[#00FF66]" : "text-zinc-400"}`}>{item}</p>
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <a className={`${v.button} text-center`} href="mailto:hello@getping.today?subject=Get%20Ping!">
-                  Get Ping!
-                </a>
-                <a className={`${v.secondaryButton} text-center`} href="#why">
-                  Why now
-                </a>
-              </div>
-            </div>
-          </div>
-        </aside>
-      </section>
-
-      <section id="why" className={`px-5 py-20 md:px-8 lg:py-28 ${v.section}`}>
-        <div className="mx-auto grid max-w-7xl gap-12 lg:grid-cols-[0.72fr_1fr]">
-          <div>
-            <p className={`mb-4 text-xs uppercase tracking-[0.28em] ${v.accent}`}>Why now</p>
-            <h2 className={variant === "lookbook" ? `${v.serif} text-5xl leading-tight md:text-7xl` : "text-4xl font-bold uppercase leading-tight md:text-6xl"}>
-              The moment for a physical digital identity key.
-            </h2>
-          </div>
-          <div className={`divide-y ${variant === "matrix" || variant === "blueprint" ? "divide-[#00FF66]/35" : "divide-white/10"}`}>
-            {whyNow.map((item, index) => (
-              <div key={item.title}>
-                <button
-                  className="flex w-full items-center justify-between gap-6 py-7 text-left"
-                  onClick={() => setOpenWhy(openWhy === index ? -1 : index)}
-                  type="button"
-                >
-                  <span className="text-xl font-semibold text-white md:text-2xl">{item.title}</span>
-                  <span className={`text-3xl leading-none ${v.accent}`}>{openWhy === index ? "-" : "+"}</span>
-                </button>
-                <div className={`grid transition-all duration-500 ${openWhy === index ? "grid-rows-[1fr] pb-8" : "grid-rows-[0fr]"}`}>
-                  <div className="overflow-hidden">
-                    <p className={`max-w-3xl ${v.copy}`}>{item.body}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
+        <div className="overflow-hidden border-y border-[#00ff66]/45 bg-black/55 py-4">
+          <div className="ping-marquee flex w-[200%] whitespace-nowrap text-[10px] uppercase tracking-[0.26em] text-[#00ff66]">
+            <span className="w-1/2">
+              2.5G TITANIUM // 2MM PROFILE // NATIVE NFC // NO RECEIVER APP // IDENTITY KEY // RING-TO-RING BLE ROADMAP //
+            </span>
+            <span className="w-1/2">
+              2.5G TITANIUM // 2MM PROFILE // NATIVE NFC // NO RECEIVER APP // IDENTITY KEY // RING-TO-RING BLE ROADMAP //
+            </span>
           </div>
         </div>
-      </section>
 
-      <section id="specs" className={`min-h-screen px-5 py-20 md:px-8 lg:py-28 ${v.section}`}>
-        <div className="mx-auto max-w-7xl">
-          <div className="mb-10 flex flex-col justify-between gap-6 md:flex-row md:items-end">
-            <div>
-              <p className={`mb-4 text-xs uppercase tracking-[0.28em] ${v.accent}`}>Macro specification carousel</p>
-              <h2 className={variant === "lookbook" ? `${v.serif} text-5xl leading-tight md:text-7xl` : "text-4xl font-bold uppercase leading-tight md:text-6xl"}>
-                Hardware with nothing extra.
-              </h2>
-            </div>
-            <div className="flex gap-2">
-              {specs.map((item, index) => (
-                <button
-                  aria-label={`Show ${item.eyebrow}`}
-                  className={`h-2.5 w-10 transition ${activeSpec === index ? "bg-[#00FF66]" : "bg-white/20"}`}
-                  key={item.eyebrow}
-                  onClick={() => setActiveSpec(index)}
-                  type="button"
-                />
-              ))}
-            </div>
-          </div>
+        <SectionBlock eyebrow="01 // Cultural Friction" id="friction" title="Why physical identity now">
+          {whyNow.map((item) => <TextRow body={item.body} key={item.label} label={item.label} />)}
+        </SectionBlock>
 
-          <div className={`grid min-h-[34rem] overflow-hidden ${v.card} ${variant === "fluid" ? "lg:grid-cols-[0.9fr_1.1fr]" : "lg:grid-cols-2"}`}>
-            <div className="relative flex items-center justify-center overflow-hidden border-b border-white/10 p-8 lg:border-b-0 lg:border-r">
-              {variant === "fluid" ? <div className="absolute h-96 w-96 rounded-full bg-[#00FF66]/20 blur-3xl" /> : null}
-              {variant === "blueprint" ? <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.08)_1px,transparent_1px)] bg-[size:50px_50px]" /> : null}
-              <div className={`relative flex aspect-square w-64 items-center justify-center rounded-full border ${variant === "fluid" ? "border-[#00FF66]/35 bg-black/60" : "border-[#00FF66]/60"}`}>
-                <span className={`${v.accent} ${variant === "lookbook" ? "font-serif text-8xl" : "text-7xl font-black"}`}>{specs[activeSpec].stat}</span>
-              </div>
-            </div>
-            <div className="flex flex-col justify-between p-8 md:p-12">
-              <div>
-                <p className={`mb-6 text-xs uppercase tracking-[0.28em] ${v.accent}`}>
-                  {variant === "blueprint" ? `[STATUS: ${specs[activeSpec].eyebrow}]` : specs[activeSpec].eyebrow}
-                </p>
-                <h3 className={variant === "lookbook" ? `${v.serif} text-5xl leading-tight text-white md:text-7xl` : "text-4xl font-bold uppercase leading-tight text-white md:text-6xl"}>
-                  {specs[activeSpec].title}
-                </h3>
-                <p className={`mt-8 max-w-xl ${v.copy}`}>{specs[activeSpec].body}</p>
-              </div>
-              <div className="mt-12 grid gap-3 md:grid-cols-3">
-                {specs.map((item, index) => (
-                  <button
-                    className={`border p-4 text-left transition ${activeSpec === index ? "border-[#00FF66] text-white" : "border-white/10 text-zinc-500 hover:text-white"}`}
-                    key={item.eyebrow}
-                    onClick={() => setActiveSpec(index)}
-                    type="button"
-                  >
-                    <p className={`text-[10px] uppercase tracking-[0.2em] ${activeSpec === index ? v.accent : ""}`}>{item.eyebrow}</p>
-                    <p className="mt-2 text-sm">{item.title}</p>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+        <SectionBlock eyebrow="02 // Technical Matrix" id="specs" title="Hardware and protocol surface">
+          {specs.map((item) => <TextRow body={item.body} key={item.label} label={item.label} />)}
+        </SectionBlock>
 
-      <section id="team" className={`px-5 py-20 md:px-8 lg:py-28 ${v.section}`}>
-        <div className="mx-auto max-w-7xl">
-          <div className="mb-12 max-w-3xl">
-            <p className={`mb-4 text-xs uppercase tracking-[0.28em] ${v.accent}`}>Creator / team pedigree</p>
-            <h2 className={variant === "lookbook" ? `${v.serif} text-5xl leading-tight md:text-7xl` : "text-4xl font-bold uppercase leading-tight md:text-6xl"}>
-              Built by AI-native product operators.
-            </h2>
-          </div>
-          <div className={`grid ${variant === "lookbook" ? "gap-12 lg:grid-cols-2" : "gap-px bg-white/10 lg:grid-cols-2"}`}>
-            {team.map((person) => (
-              <article className={`${variant === "lookbook" ? "border-t border-white/10 pt-8" : `${v.card} p-8 md:p-10`}`} key={person.name}>
-                <p className={`mb-5 text-xs uppercase tracking-[0.28em] ${v.accent}`}>{person.role}</p>
-                <h3 className={variant === "lookbook" ? `${v.serif} text-4xl leading-tight text-white md:text-6xl` : "text-3xl font-bold uppercase leading-tight text-white md:text-5xl"}>
-                  {person.name}
-                </h3>
-                <p className={`mt-7 ${v.copy}`}>{person.body}</p>
-                <div className={`mt-8 border-t pt-6 ${variant === "matrix" || variant === "blueprint" ? "border-[#00FF66]/35" : "border-white/10"}`}>
-                  <p className={`mb-2 text-[10px] uppercase tracking-[0.24em] ${v.accent}`}>Focus</p>
-                  <p className="text-sm leading-6 text-zinc-300">{person.focus}</p>
-                </div>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
+        <SectionBlock eyebrow="03 // Ecosystem Creators" id="creators" title="Operators behind the object">
+          {creators.map((item) => <TextRow body={`${item.role}: ${item.body}`} key={item.name} label={item.name} />)}
+        </SectionBlock>
 
-      <footer className={`px-5 py-10 md:px-8 ${v.section}`}>
-        <div className="mx-auto flex max-w-7xl flex-col justify-between gap-4 text-xs uppercase tracking-[0.22em] text-zinc-500 md:flex-row">
-          <p>Ping! by Ping Ring Inc.</p>
-          <p>Identity. Portfolios. Real-world connection.</p>
-        </div>
-      </footer>
+        <SectionBlock eyebrow="04 // Platform Strategy" id="strategy" title="Revenue architecture">
+          {strategy.map((item) => <TextRow body={item.body} key={item.label} label={item.label} />)}
+          <article className="p-5 md:p-8">
+            <a className="inline-flex border border-[#00ff66] bg-[#00ff66] px-7 py-4 text-[10px] font-bold uppercase tracking-[0.26em] text-black transition hover:bg-black hover:text-[#00ff66]" href="https://getping.today">
+              Get Ping!
+            </a>
+          </article>
+        </SectionBlock>
+
+        <footer className="grid gap-4 border-t border-[#00ff66]/45 bg-black/65 p-5 text-[10px] uppercase tracking-[0.24em] text-white/70 md:grid-cols-3 md:p-7">
+          <span>Ping Ring Inc.</span>
+          <span>Real-world identity infrastructure</span>
+          <span className="md:text-right">© Protocol v2.26</span>
+        </footer>
+      </div>
+
+      <style>{`
+        .ping-marquee { animation: ping-marquee 24s linear infinite; }
+        @keyframes ping-marquee {
+          from { transform: translateX(0); }
+          to { transform: translateX(-50%); }
+        }
+      `}</style>
     </main>
   );
 }
