@@ -1,4 +1,4 @@
-import { AdaptiveDpr, Environment, PerspectiveCamera, Preload, useGLTF } from "@react-three/drei";
+import { Environment, PerspectiveCamera, Preload, Text, useGLTF } from "@react-three/drei";
 import { Canvas, useFrame, useLoader, useThree } from "@react-three/fiber";
 import type { MutableRefObject } from "react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -8,7 +8,9 @@ type PingStorePageProps = {
   variant?: "fluid";
 };
 
-const accent = "#ff4d16";
+const accent = "#0f6f3d";
+const pulseGreen = "#38ff8c";
+const deepGreen = "#04150c";
 const pcbTexturePath = "/assets/raven/chip2.webp";
 const squaresTexturePath = "/assets/raven/squares.webp";
 const ravenModelPath = "/assets/raven/models/raven_circuit_engraved_latest.glb";
@@ -115,6 +117,10 @@ function clamp(value: number, min = 0, max = 1) {
   return Math.min(max, Math.max(min, value));
 }
 
+function easeInOutCubic(value: number) {
+  return value < 0.5 ? 4 * value * value * value : 1 - Math.pow(-2 * value + 2, 3) / 2;
+}
+
 function useScrollState() {
   const progressRef = useRef(0);
   const [active, setActive] = useState(0);
@@ -145,22 +151,31 @@ function CircuitScene({ onReady, progressRef }: { onReady: () => void; progressR
     <div className="fixed inset-0 z-0 h-screen w-screen bg-black">
       <Canvas
         className="h-full w-full"
-        dpr={[1, 1.25]}
-        gl={{ antialias: true, alpha: false, powerPreference: "high-performance", stencil: false }}
-        onCreated={onReady}
+        dpr={[1.5, 2]}
+        gl={{ antialias: true, alpha: false, powerPreference: "high-performance", precision: "highp", stencil: false }}
+        onCreated={({ gl }) => {
+          gl.toneMapping = THREE.ACESFilmicToneMapping;
+          gl.toneMappingExposure = 1.18;
+          gl.outputColorSpace = THREE.SRGBColorSpace;
+          gl.shadowMap.enabled = true;
+          gl.shadowMap.type = THREE.PCFShadowMap;
+          onReady();
+        }}
       >
         <PerspectiveCamera makeDefault fov={36} position={[0.15, 3.6, 8.4]} />
         <color attach="background" args={["#000000"]} />
-        <fog attach="fog" args={["#000000", 8, 26]} />
-        <ambientLight intensity={0.12} />
-        <directionalLight color="#ffffff" intensity={0.95} position={[4.5, 7, 5]} />
-        <pointLight color={accent} intensity={230} distance={18} position={[-2.1, 1.1, 1.2]} />
-        <pointLight color={accent} intensity={120} distance={20} position={[5, -1.2, -7]} />
+        <fog attach="fog" args={["#000000", 7.5, 24]} />
+        <ambientLight intensity={0.055} />
+        <directionalLight castShadow color="#f2fff7" intensity={1.28} position={[4.5, 7, 5]} />
+        <spotLight angle={0.42} castShadow color="#f7fff9" intensity={125} penumbra={0.74} position={[-3.6, 5.4, 4.2]} />
+        <pointLight color={pulseGreen} intensity={190} distance={15} position={[-2.1, 1.1, 1.2]} />
+        <pointLight color={accent} intensity={96} distance={18} position={[5, -1.2, -7]} />
         <HardwareStage progressRef={progressRef} />
-        <AdaptiveDpr />
         <Environment preset="night" />
         <Preload all />
       </Canvas>
+      <div className="ethereal-glow pointer-events-none absolute inset-0" />
+      <div className="ethereal-vignette pointer-events-none absolute inset-0" />
     </div>
   );
 }
@@ -169,6 +184,20 @@ type CameraTransform = {
   position: THREE.Vector3;
   quaternion: THREE.Quaternion;
 };
+
+type LogoMarker = {
+  key: string;
+  position: THREE.Vector3;
+  size: number;
+  depth: number;
+};
+
+const ringLayouts = [
+  { position: [-2.25, 0.2, 1.1], rotation: [-1.18, 0.15, -0.28], scale: 0.72 },
+  { position: [1.78, 0.17, -0.38], rotation: [-1.36, -0.38, 0.42], scale: 0.52 },
+  { position: [3.38, 0.14, -3.95], rotation: [-1.22, 0.44, -0.64], scale: 0.44 },
+  { position: [-1.05, 0.15, -3.05], rotation: [-1.42, -0.16, 0.28], scale: 0.38 },
+] as const;
 
 function HardwareStage({ progressRef }: { progressRef: MutableRefObject<number> }) {
   const { scene } = useGLTF(ravenModelPath);
@@ -183,18 +212,22 @@ function HardwareStage({ progressRef }: { progressRef: MutableRefObject<number> 
   const smoothProgress = useRef(0);
   const tempPosition = useMemo(() => new THREE.Vector3(), []);
   const tempQuaternion = useMemo(() => new THREE.Quaternion(), []);
+  const glowMaterialRef = useRef<THREE.MeshBasicMaterial | null>(null);
+  const planeMaterialRef = useRef<THREE.MeshBasicMaterial | null>(null);
+  const logoGroupRef = useRef<THREE.Group | null>(null);
+  const ringGroupRef = useRef<THREE.Group | null>(null);
 
   useLayoutEffect(() => {
     [squaresMap, normalMap, aoMap, roughnessMap].forEach((texture) => {
       texture.wrapS = THREE.RepeatWrapping;
       texture.wrapT = THREE.RepeatWrapping;
-      texture.anisotropy = 8;
+      texture.anisotropy = 16;
     });
     squaresMap.colorSpace = THREE.SRGBColorSpace;
     squaresMap.repeat.set(1.4, 1.4);
     pcbMap.colorSpace = THREE.SRGBColorSpace;
     pcbMap.flipY = false;
-    pcbMap.anisotropy = 8;
+    pcbMap.anisotropy = 16;
     normalMap.repeat.set(50, 50);
     aoMap.repeat.set(50, 50);
     roughnessMap.repeat.set(50, 50);
@@ -202,7 +235,7 @@ function HardwareStage({ progressRef }: { progressRef: MutableRefObject<number> 
 
   const glowMaterial = useMemo(() => new THREE.MeshBasicMaterial({
     blending: THREE.AdditiveBlending,
-    color: "#ff7a1a",
+    color: pulseGreen,
     depthWrite: false,
     map: squaresMap,
     toneMapped: false,
@@ -212,7 +245,7 @@ function HardwareStage({ progressRef }: { progressRef: MutableRefObject<number> 
 
   const planeMaterial = useMemo(() => new THREE.MeshBasicMaterial({
     blending: THREE.AdditiveBlending,
-    color: "#ff4d16",
+    color: accent,
     depthWrite: false,
     map: pcbMap,
     toneMapped: false,
@@ -220,22 +253,51 @@ function HardwareStage({ progressRef }: { progressRef: MutableRefObject<number> 
     opacity: 0.72,
   }), [pcbMap]);
 
-  const plasticMaterial = useMemo(() => new THREE.MeshStandardMaterial({
+  const chipMaterial = useMemo(() => new THREE.MeshPhysicalMaterial({
     aoMap,
-    color: "#050403",
-    emissive: "#180801",
-    emissiveIntensity: 0.22,
-    metalness: 0.62,
+    clearcoat: 0.78,
+    clearcoatRoughness: 0.46,
+    color: "#070806",
+    emissive: deepGreen,
+    emissiveIntensity: 0.18,
+    envMapIntensity: 1.65,
+    metalness: 0.78,
     normalMap,
-    roughness: 0.58,
+    reflectivity: 0.7,
+    roughness: 0.42,
     roughnessMap,
   }), [aoMap, normalMap, roughnessMap]);
+
+  const ringMaterial = useMemo(() => new THREE.MeshPhysicalMaterial({
+    clearcoat: 1,
+    clearcoatRoughness: 0.18,
+    color: "#020302",
+    emissive: "#010b05",
+    emissiveIntensity: 0.1,
+    envMapIntensity: 2.2,
+    metalness: 0.18,
+    roughness: 0.24,
+    transmission: 0,
+  }), []);
+
+  const ringEdgeMaterial = useMemo(() => new THREE.MeshBasicMaterial({
+    blending: THREE.AdditiveBlending,
+    color: pulseGreen,
+    depthWrite: false,
+    transparent: true,
+    opacity: 0.16,
+  }), []);
+
+  const softGlow = useMemo(() => new THREE.Color(pulseGreen), []);
+  const deepGlow = useMemo(() => new THREE.Color(accent), []);
 
   const model = useMemo(() => {
     const clone = scene.clone(true);
     clone.traverse((child) => {
       if (!(child instanceof THREE.Mesh)) return;
       child.frustumCulled = false;
+      child.castShadow = true;
+      child.receiveShadow = true;
       if (child.name.startsWith("Camera")) {
         child.visible = false;
       } else if (child.name.includes("GlowBox")) {
@@ -243,11 +305,39 @@ function HardwareStage({ progressRef }: { progressRef: MutableRefObject<number> 
       } else if (child.name === "Plane") {
         child.material = planeMaterial;
       } else {
-        child.material = plasticMaterial;
+        child.material = chipMaterial;
       }
     });
     return clone;
-  }, [glowMaterial, planeMaterial, plasticMaterial, scene]);
+  }, [chipMaterial, glowMaterial, planeMaterial, scene]);
+
+  useLayoutEffect(() => {
+    glowMaterialRef.current = glowMaterial;
+    planeMaterialRef.current = planeMaterial;
+  }, [glowMaterial, planeMaterial]);
+
+  const logoMarkers = useMemo<LogoMarker[]>(() => {
+    model.updateMatrixWorld(true);
+    const seen = new Set<string>();
+    const markers: LogoMarker[] = [];
+    model.traverse((child) => {
+      if (!(child instanceof THREE.Mesh)) return;
+      if (!child.name.includes("Cube") || child.name === "Plane") return;
+      const position = child.getWorldPosition(new THREE.Vector3());
+      const key = `${position.x.toFixed(1)}:${position.z.toFixed(1)}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      const box = new THREE.Box3().setFromObject(child);
+      const size = box.getSize(new THREE.Vector3());
+      markers.push({
+        key: child.name,
+        position: position.add(new THREE.Vector3(0, Math.max(0.08, size.y * 0.52 + 0.025), 0)),
+        size: Math.max(0.14, Math.min(0.32, Math.max(size.x, size.z) * 0.25)),
+        depth: Math.max(0.3, Math.min(0.72, Math.max(size.x, size.z) * 0.52)),
+      });
+    });
+    return markers;
+  }, [model]);
 
   const cameraTransforms = useMemo<CameraTransform[]>(() => {
     model.updateMatrixWorld(true);
@@ -267,7 +357,7 @@ function HardwareStage({ progressRef }: { progressRef: MutableRefObject<number> 
 
   useFrame((_, delta) => {
     if (!cameraTransforms.length) return;
-    smoothProgress.current = THREE.MathUtils.damp(smoothProgress.current, progressRef.current, 5.8, delta);
+    smoothProgress.current = THREE.MathUtils.damp(smoothProgress.current, progressRef.current, 20, delta);
     const scaled = smoothProgress.current * (cameraTransforms.length - 1);
     const index = Math.min(cameraTransforms.length - 2, Math.max(0, Math.floor(scaled)));
     const nextIndex = Math.min(cameraTransforms.length - 1, index + 1);
@@ -278,10 +368,74 @@ function HardwareStage({ progressRef }: { progressRef: MutableRefObject<number> 
     tempQuaternion.copy(current.quaternion).slerp(next.quaternion, localProgress);
     camera.position.copy(tempPosition);
     camera.quaternion.copy(tempQuaternion);
+    const time = performance.now() * 0.001;
+    const pulse = 0.64 + Math.sin(time * 1.22) * 0.28;
+    const lineBreath = 0.58 + Math.sin(time * 0.92 + smoothProgress.current * Math.PI * 2.2) * 0.3;
+    if (glowMaterialRef.current) {
+      glowMaterialRef.current.opacity = 0.5 + pulse * 0.38;
+      glowMaterialRef.current.color.copy(deepGlow).lerp(softGlow, 0.42 + pulse * 0.38);
+    }
+    if (planeMaterialRef.current) {
+      planeMaterialRef.current.opacity = 0.34 + lineBreath * 0.5;
+      planeMaterialRef.current.color.copy(deepGlow).lerp(softGlow, 0.64 + lineBreath * 0.18);
+      if (planeMaterialRef.current.map) {
+        planeMaterialRef.current.map.offset.set(Math.sin(time * 0.05) * 0.003, Math.cos(time * 0.045) * 0.003);
+      }
+    }
+    if (logoGroupRef.current) {
+      logoGroupRef.current.children.forEach((child, index) => {
+        const logoPulse = 0.94 + Math.sin(time * 1.3 + index * 0.42) * 0.035;
+        child.scale.setScalar(logoPulse);
+      });
+    }
+    if (ringGroupRef.current) {
+      ringGroupRef.current.rotation.y = Math.sin(time * 0.24) * 0.025;
+    }
   });
 
   return (
-    <primitive object={model} />
+    <>
+      <primitive object={model} />
+      <group ref={ringGroupRef}>
+        {ringLayouts.map((ring, index) => (
+          <group
+            key={`ring-${index}`}
+            position={ring.position}
+            rotation={ring.rotation}
+            scale={ring.scale}
+          >
+            <mesh castShadow receiveShadow material={ringMaterial}>
+              <torusGeometry args={[0.54, 0.052, 32, 128]} />
+            </mesh>
+            <mesh material={ringEdgeMaterial} scale={[1.01, 1.01, 1.01]}>
+              <torusGeometry args={[0.54, 0.012, 16, 128]} />
+            </mesh>
+          </group>
+        ))}
+      </group>
+      <group ref={logoGroupRef}>
+        {logoMarkers.map((marker) => (
+          <group key={marker.key} position={marker.position} rotation={[-Math.PI / 2, 0, 0]}>
+            <mesh position={[0, 0, -0.004]}>
+              <planeGeometry args={[marker.depth, marker.depth * 0.46]} />
+              <meshBasicMaterial color="#020604" opacity={0.72} transparent />
+            </mesh>
+            <Text
+              anchorX="center"
+              anchorY="middle"
+              color="#ecfff4"
+              fontSize={marker.size}
+              outlineBlur={0.004}
+              outlineColor="#001f0f"
+              outlineWidth={0.014}
+              position={[0, 0, 0.002]}
+            >
+              P!
+            </Text>
+          </group>
+        ))}
+      </group>
+    </>
   );
 }
 
@@ -320,10 +474,8 @@ function Header() {
   return (
     <header className="group fixed left-0 top-0 z-40 flex h-[88px] w-full items-center border-b border-white/10 bg-[#050505]/92 px-[3vw] backdrop-blur-sm">
       <a className="mr-auto flex items-center gap-3 text-[22px] font-bold uppercase tracking-[0.02em]" href="#top">
-        <span className="grid h-5 w-9 grid-cols-3 gap-[1px]">
-          {Array.from({ length: 9 }).map((_, index) => (
-            <span className="h-[5px] w-[10px] rotate-45 bg-white" key={index} />
-          ))}
+        <span className="grid h-9 w-9 place-items-center border border-white/25 bg-white text-[16px] font-black leading-none text-black shadow-[0_0_24px_rgba(56,255,140,0.18)]">
+          P!
         </span>
         Ping
       </a>
@@ -400,9 +552,9 @@ function HeroSection() {
           <span>#</span>
           <span>01 / NFC identity system</span>
         </div>
-        <h1 className="display-type ml-[19vw] max-w-none text-[44px] uppercase leading-[0.86] text-white md:text-[64px] lg:text-[70px]">
-          <span className="block whitespace-nowrap">EMPOWERING NATIVE</span>
-          <span className="block whitespace-nowrap md:ml-[18%]">DIGITAL IDENTITY<span style={{ color: accent }}>*</span></span>
+        <h1 className="display-type ml-[4vw] max-w-[92vw] text-[40px] uppercase leading-[0.86] text-white md:ml-[8vw] md:text-[52px] xl:ml-[19vw] xl:max-w-none xl:text-[70px]">
+          <span className="block xl:whitespace-nowrap">EMPOWERING NATIVE</span>
+          <span className="block md:ml-[8%] xl:ml-[18%] xl:whitespace-nowrap">DIGITAL IDENTITY<span style={{ color: accent }}>*</span></span>
         </h1>
         <div className="ml-auto w-full max-w-[490px] pb-1">
           <h2 className="mono-title text-[24px] uppercase leading-none">we are ping</h2>
@@ -544,7 +696,7 @@ function WhySection() {
         </div>
         </div>
         <div className="mt-20 grid items-center gap-10 border-t border-white/12 pt-12 md:grid-cols-[0.44fr_0.56fr]">
-          <div className="aspect-[4/3] border border-white/12 bg-[linear-gradient(135deg,rgba(255,77,22,0.42),rgba(255,255,255,0.06)_38%,rgba(0,0,0,0.2))]" />
+          <div className="aspect-[4/3] border border-white/12 bg-[linear-gradient(135deg,rgba(15,111,61,0.48),rgba(255,255,255,0.06)_38%,rgba(0,0,0,0.2))]" />
           <div>
             <p className="mono-title text-[24px] uppercase leading-none">Careers</p>
             <h2 className="mono-title mt-10 text-[24px] uppercase leading-none">working at ping</h2>
@@ -588,6 +740,8 @@ export function PingStorePage(_: PingStorePageProps) {
   const { active, progressRef } = useScrollState();
   const [ready, setReady] = useState(false);
   const [bootDone, setBootDone] = useState(false);
+  const scrollLock = useRef(false);
+  const scrollAnimation = useRef<number | null>(null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setBootDone(true), 2600);
@@ -601,6 +755,79 @@ export function PingStorePage(_: PingStorePageProps) {
     };
   }, [bootDone, ready]);
 
+  useEffect(() => {
+    if (!ready || !bootDone) return;
+    const animateToSection = (index: number) => {
+      if (scrollAnimation.current) window.cancelAnimationFrame(scrollAnimation.current);
+      const target = Math.round(clamp(index, 0, sectionIds.length - 1) * window.innerHeight);
+      const start = window.scrollY;
+      const distance = target - start;
+      const maxScroll = Math.max(1, window.innerHeight * (sectionIds.length - 1));
+      const duration = 940;
+      const startedAt = performance.now();
+      scrollLock.current = true;
+
+      const step = (now: number) => {
+        const elapsed = clamp((now - startedAt) / duration);
+        const eased = easeInOutCubic(elapsed);
+        const nextTop = Math.round(start + distance * eased);
+        progressRef.current = clamp(nextTop / maxScroll);
+        window.scrollTo(0, nextTop);
+        if (elapsed < 1) {
+          scrollAnimation.current = window.requestAnimationFrame(step);
+          return;
+        }
+        window.scrollTo(0, target);
+        progressRef.current = clamp(target / maxScroll);
+        window.setTimeout(() => {
+          scrollLock.current = false;
+          scrollAnimation.current = null;
+        }, 120);
+      };
+
+      scrollAnimation.current = window.requestAnimationFrame(step);
+    };
+
+    const handleWheel = (event: WheelEvent) => {
+      if (window.innerWidth < 768 || Math.abs(event.deltaY) < 18) return;
+      event.preventDefault();
+      if (scrollLock.current) return;
+      const current = Math.round(window.scrollY / window.innerHeight);
+      const next = clamp(current + (event.deltaY > 0 ? 1 : -1), 0, sectionIds.length - 1);
+      animateToSection(next);
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!["ArrowDown", "PageDown", "ArrowUp", "PageUp", "Home", "End"].includes(event.key) || window.innerWidth < 768) return;
+      event.preventDefault();
+      if (scrollLock.current) return;
+      const current = Math.round(window.scrollY / window.innerHeight);
+      if (event.key === "Home") animateToSection(0);
+      else if (event.key === "End") animateToSection(sectionIds.length - 1);
+      else animateToSection(current + (event.key === "ArrowDown" || event.key === "PageDown" ? 1 : -1));
+    };
+
+    const handleAnchorClick = (event: MouseEvent) => {
+      const link = (event.target as HTMLElement | null)?.closest<HTMLAnchorElement>("a[href^='#']");
+      if (!link || window.innerWidth < 768) return;
+      const id = link.hash.slice(1);
+      const index = sectionIds.indexOf(id);
+      if (index < 0) return;
+      event.preventDefault();
+      animateToSection(index);
+    };
+
+    window.addEventListener("wheel", handleWheel, { passive: false });
+    window.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("click", handleAnchorClick);
+    return () => {
+      if (scrollAnimation.current) window.cancelAnimationFrame(scrollAnimation.current);
+      window.removeEventListener("wheel", handleWheel);
+      window.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("click", handleAnchorClick);
+    };
+  }, [bootDone, ready]);
+
   return (
     <main className="min-h-screen overflow-x-hidden bg-black text-white">
       <CircuitScene onReady={() => setReady(true)} progressRef={progressRef} />
@@ -608,7 +835,7 @@ export function PingStorePage(_: PingStorePageProps) {
       <Header />
       <ProgressRail active={active} />
 
-      <div className="relative z-10 md:snap-y md:snap-mandatory">
+      <div className="relative z-10">
         <HeroSection />
         <AboutSection />
         <MarketsSection />
@@ -620,10 +847,35 @@ export function PingStorePage(_: PingStorePageProps) {
 
       <style>{`
         *, *::before, *::after { box-sizing: border-box; }
-        html { scroll-behavior: smooth; background: #000000; }
+        html { scroll-behavior: auto; background: #000000; }
         html, body { max-width: 100%; overflow-x: hidden; }
         body { background: #000000; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
         .section { scroll-snap-align: start; scroll-snap-stop: always; overflow: hidden; }
+        .ethereal-glow {
+          mix-blend-mode: screen;
+          opacity: 0.72;
+          animation: etherealBreath 5.8s ease-in-out infinite;
+          background:
+            radial-gradient(circle at 29% 58%, rgba(56,255,140,0.18), rgba(56,255,140,0.035) 27%, transparent 52%),
+            radial-gradient(circle at 71% 34%, rgba(185,255,216,0.105), rgba(56,255,140,0.03) 24%, transparent 50%),
+            linear-gradient(115deg, transparent 0%, rgba(56,255,140,0.05) 44%, transparent 72%);
+          filter: blur(18px) saturate(1.25);
+        }
+        .ethereal-vignette {
+          background:
+            radial-gradient(circle at 50% 45%, transparent 0%, transparent 46%, rgba(0,0,0,0.72) 100%),
+            linear-gradient(90deg, rgba(0,0,0,0.8), transparent 22%, transparent 76%, rgba(0,0,0,0.74));
+        }
+        @keyframes etherealBreath {
+          0%, 100% {
+            opacity: 0.48;
+            transform: scale(1);
+          }
+          50% {
+            opacity: 0.9;
+            transform: scale(1.035);
+          }
+        }
         .display-type {
           font-family: Monaco, "Lucida Console", "Andale Mono", ui-monospace, monospace;
           letter-spacing: 0;
