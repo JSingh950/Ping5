@@ -1,5 +1,5 @@
-import { AdaptiveDpr, Environment, PerspectiveCamera, Preload } from "@react-three/drei";
-import { Canvas, useFrame, useLoader } from "@react-three/fiber";
+import { AdaptiveDpr, Environment, PerspectiveCamera, Preload, useGLTF } from "@react-three/drei";
+import { Canvas, useFrame, useLoader, useThree } from "@react-three/fiber";
 import type { MutableRefObject } from "react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
@@ -8,41 +8,13 @@ type PingStorePageProps = {
   variant?: "fluid";
 };
 
-type Trace = {
-  angle: number;
-  length: number;
-  x: number;
-  y: number;
-  width: number;
-};
-
-type BoardPlate = {
-  angle: number;
-  height: number;
-  x: number;
-  y: number;
-  width: number;
-};
-
-type RingSeed = {
-  x: number;
-  y: number;
-  z: number;
-  scale: number;
-  rx: number;
-  ry: number;
-  rz: number;
-};
-
-type NodeSeed = {
-  s: number;
-  x: number;
-  y: number;
-};
-
 const accent = "#ff4d16";
 const pcbTexturePath = "/assets/raven/chip2.webp";
 const squaresTexturePath = "/assets/raven/squares.webp";
+const ravenModelPath = "/assets/raven/models/raven_circuit_engraved_latest.glb";
+const plasticNormalPath = "/assets/raven/textures/plastic/512-black_plastic_normal.webp";
+const plasticAoPath = "/assets/raven/textures/plastic/1K-black_plastic_ambientocclusion.webp";
+const plasticRoughnessPath = "/assets/raven/textures/plastic/1K-black_plastic_roughness.webp";
 const sectionIds = ["top", "about", "markets", "platform", "industry", "why"];
 
 const marketCards = [
@@ -139,17 +111,8 @@ const industryBands = [
   ["powering the industry", "Wide, competitive, and uninterrupted coverage of identity handoff across high-density rooms"],
 ];
 
-function lerp(from: number, to: number, amount: number) {
-  return from + (to - from) * amount;
-}
-
 function clamp(value: number, min = 0, max = 1) {
   return Math.min(max, Math.max(min, value));
-}
-
-function seededRandom(seed: number) {
-  const x = Math.sin(seed) * 10000;
-  return x - Math.floor(x);
 }
 
 function useScrollState() {
@@ -202,393 +165,123 @@ function CircuitScene({ onReady, progressRef }: { onReady: () => void; progressR
   );
 }
 
-function PingChip({ size = "large", squaresMap }: { size?: "hero" | "large" | "mini"; squaresMap?: THREE.Texture }) {
-  const isHero = size === "hero";
-  const isMini = size === "mini";
-  const body: [number, number, number] = isHero ? [4.6, 0.56, 3.1] : isMini ? [1.55, 0.3, 1.08] : [2.55, 0.42, 1.72];
-  const glow: [number, number, number] = [body[0] * 1.03, body[1] * 0.62, body[2] * 1.03];
-  const topY = body[1] / 2 + 0.016;
-  const pinCount = isMini ? 5 : isHero ? 15 : 9;
-  const pinStep = body[0] / (pinCount + 1);
-
-  return (
-    <group>
-      <mesh position={[0, -body[1] * 0.42, 0]}>
-        <boxGeometry args={glow} />
-        <meshBasicMaterial color="#ffb445" map={squaresMap} toneMapped={false} transparent opacity={0.82} />
-      </mesh>
-      <mesh>
-        <boxGeometry args={body} />
-        <meshStandardMaterial color="#0b0805" metalness={0.72} roughness={0.24} emissive="#2f1003" emissiveIntensity={0.26} />
-      </mesh>
-      <mesh position={[0, topY, 0]}>
-        <boxGeometry args={[body[0] * 0.86, 0.018, body[2] * 0.74]} />
-        <meshStandardMaterial color="#1a1108" metalness={0.9} roughness={0.17} emissive="#160702" emissiveIntensity={0.2} />
-      </mesh>
-      <mesh position={[0, topY + 0.018, 0]} rotation={[0, 0, Math.PI / 6]}>
-        <cylinderGeometry args={[isMini ? 0.28 : 0.46, isMini ? 0.28 : 0.46, 0.018, 6]} />
-        <meshBasicMaterial color="#ffdd92" toneMapped={false} transparent opacity={0.82} />
-      </mesh>
-      {[-0.34, 0, 0.34].map((offset) => (
-        <mesh key={`chip-mark-${offset}`} position={[offset * body[0] * 0.25, topY + 0.036, 0]} rotation={[0, 0, -0.45]}>
-          <boxGeometry args={[isMini ? 0.34 : 0.56, 0.018, isMini ? 0.06 : 0.1]} />
-          <meshBasicMaterial color="#fff3cf" toneMapped={false} />
-        </mesh>
-      ))}
-      {Array.from({ length: pinCount }).map((_, index) => {
-        const x = -body[0] / 2 + (index + 1) * pinStep;
-        return (
-          <group key={`pin-row-${index}`}>
-            <mesh position={[x, -body[1] * 0.22, body[2] / 2 + 0.16]}>
-              <boxGeometry args={[isMini ? 0.08 : 0.12, isMini ? 0.1 : 0.16, isMini ? 0.22 : 0.38]} />
-              <meshBasicMaterial color="#ff7a24" toneMapped={false} />
-            </mesh>
-            <mesh position={[x, -body[1] * 0.22, -body[2] / 2 - 0.16]}>
-              <boxGeometry args={[isMini ? 0.08 : 0.12, isMini ? 0.1 : 0.16, isMini ? 0.22 : 0.38]} />
-              <meshBasicMaterial color="#ff7a24" toneMapped={false} />
-            </mesh>
-          </group>
-        );
-      })}
-      {Array.from({ length: isHero ? 24 : isMini ? 6 : 12 }).map((_, index) => (
-        <mesh
-          key={`chip-window-${index}`}
-          position={[
-            (seededRandom(index * 4.7) - 0.5) * body[0] * 0.82,
-            -body[1] * 0.36,
-            (seededRandom(index * 8.2) - 0.5) * body[2] * 0.72,
-          ]}
-        >
-          <boxGeometry args={[isMini ? 0.08 : 0.16, isMini ? 0.032 : 0.048, isMini ? 0.06 : 0.11]} />
-          <meshBasicMaterial color="#ffe099" toneMapped={false} transparent opacity={0.82} />
-        </mesh>
-      ))}
-    </group>
-  );
-}
-
-function PingRing({ accentBand = false }: { accentBand?: boolean }) {
-  return (
-    <group>
-      <mesh rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[0.56, 0.09, 16, 60]} />
-        <meshStandardMaterial color="#020202" metalness={1} roughness={0.1} envMapIntensity={2.2} />
-      </mesh>
-      <mesh rotation={[Math.PI / 2, 0, 0]} scale={1.02}>
-        <torusGeometry args={[0.56, 0.012, 8, 60]} />
-        <meshBasicMaterial color={accentBand ? accent : "#252525"} toneMapped={false} transparent opacity={accentBand ? 0.84 : 0.46} />
-      </mesh>
-    </group>
-  );
-}
-
-function InstancedTraces({ traces, opacity, z }: { opacity: number; traces: Trace[]; z: number }) {
-  const ref = useRef<THREE.InstancedMesh>(null);
-
-  useLayoutEffect(() => {
-    if (!ref.current) return;
-    const matrix = new THREE.Matrix4();
-    const rotation = new THREE.Euler(0, 0, 0);
-    const quaternion = new THREE.Quaternion();
-    const scale = new THREE.Vector3();
-    traces.forEach((trace, index) => {
-      rotation.z = trace.angle;
-      quaternion.setFromEuler(rotation);
-      scale.set(trace.length, trace.width, 0.024);
-      matrix.compose(new THREE.Vector3(trace.x, trace.y, z), quaternion, scale);
-      ref.current?.setMatrixAt(index, matrix);
-    });
-    ref.current.instanceMatrix.needsUpdate = true;
-  }, [traces, z]);
-
-  return (
-    <instancedMesh ref={ref} args={[undefined, undefined, traces.length]} frustumCulled={false}>
-      <boxGeometry args={[1, 1, 1]} />
-      <meshBasicMaterial color={accent} toneMapped={false} transparent opacity={opacity} />
-    </instancedMesh>
-  );
-}
-
-function InstancedNodes({ nodes }: { nodes: NodeSeed[] }) {
-  const ref = useRef<THREE.InstancedMesh>(null);
-
-  useLayoutEffect(() => {
-    if (!ref.current) return;
-    const matrix = new THREE.Matrix4();
-    const quaternion = new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.PI / 2, 0, 0));
-    nodes.forEach((node, index) => {
-      matrix.compose(new THREE.Vector3(node.x, node.y, 0.078), quaternion, new THREE.Vector3(node.s, node.s, 0.03));
-      ref.current?.setMatrixAt(index, matrix);
-    });
-    ref.current.instanceMatrix.needsUpdate = true;
-  }, [nodes]);
-
-  return (
-    <instancedMesh ref={ref} args={[undefined, undefined, nodes.length]} frustumCulled={false}>
-      <cylinderGeometry args={[1, 1, 1, 18]} />
-      <meshBasicMaterial color={accent} toneMapped={false} transparent opacity={0.86} />
-    </instancedMesh>
-  );
-}
-
-function InstancedRings({ rings }: { rings: RingSeed[] }) {
-  const shell = useRef<THREE.InstancedMesh>(null);
-  const glints = useRef<THREE.InstancedMesh>(null);
-
-  useLayoutEffect(() => {
-    const matrix = new THREE.Matrix4();
-    const rotation = new THREE.Euler();
-    const quaternion = new THREE.Quaternion();
-    const scale = new THREE.Vector3();
-    rings.forEach((ring, index) => {
-      rotation.set(ring.rx, ring.ry, ring.rz);
-      quaternion.setFromEuler(rotation);
-      scale.setScalar(ring.scale);
-      matrix.compose(new THREE.Vector3(ring.x, ring.y, ring.z), quaternion, scale);
-      shell.current?.setMatrixAt(index, matrix);
-      glints.current?.setMatrixAt(index, matrix);
-    });
-    if (shell.current) shell.current.instanceMatrix.needsUpdate = true;
-    if (glints.current) glints.current.instanceMatrix.needsUpdate = true;
-  }, [rings]);
-
-  return (
-    <>
-      <instancedMesh ref={shell} args={[undefined, undefined, rings.length]} frustumCulled={false}>
-        <torusGeometry args={[0.56, 0.09, 14, 44]} />
-        <meshStandardMaterial color="#030303" metalness={0.98} roughness={0.14} envMapIntensity={1.7} />
-      </instancedMesh>
-      <instancedMesh ref={glints} args={[undefined, undefined, rings.length]} frustumCulled={false} scale={1.02}>
-        <torusGeometry args={[0.56, 0.011, 8, 44]} />
-        <meshBasicMaterial color={accent} toneMapped={false} transparent opacity={0.28} />
-      </instancedMesh>
-    </>
-  );
-}
+type CameraTransform = {
+  position: THREE.Vector3;
+  quaternion: THREE.Quaternion;
+};
 
 function HardwareStage({ progressRef }: { progressRef: MutableRefObject<number> }) {
-  const [pcbMap, squaresMap] = useLoader(THREE.TextureLoader, [pcbTexturePath, squaresTexturePath]);
-  const world = useRef<THREE.Group>(null);
-  const heroChip = useRef<THREE.Group>(null);
-  const aboutChip = useRef<THREE.Group>(null);
-  const marketChips = useRef<THREE.Group>(null);
-  const tradingGrid = useRef<THREE.Group>(null);
-  const ringsGroup = useRef<THREE.Group>(null);
+  const { scene } = useGLTF(ravenModelPath);
+  const { camera } = useThree();
+  const [squaresMap, pcbMap, normalMap, aoMap, roughnessMap] = useLoader(THREE.TextureLoader, [
+    squaresTexturePath,
+    pcbTexturePath,
+    plasticNormalPath,
+    plasticAoPath,
+    plasticRoughnessPath,
+  ]);
   const smoothProgress = useRef(0);
-
-  const boardPlates = useMemo<BoardPlate[]>(() => [
-    { x: -22, y: 7, width: 25, height: 7.6, angle: 0.12 },
-    { x: 4, y: 6.8, width: 28, height: 7.2, angle: -0.08 },
-    { x: 27, y: -3.8, width: 22, height: 6.4, angle: 0.14 },
-    { x: -20, y: -8.8, width: 26, height: 6.8, angle: -0.12 },
-    { x: 1, y: -15.6, width: 31, height: 6.2, angle: 0.04 },
-  ], []);
-
-  const traces = useMemo(() => {
-    const strong: Trace[] = [];
-    const fine: Trace[] = [];
-    const add = (target: Trace[], x: number, y: number, length: number, angle: number, width: number) => {
-      target.push({ x, y, length, angle, width });
-    };
-    const route = (target: Trace[], sx: number, sy: number, ex: number, ey: number, lane: number, width: number) => {
-      const midX = sx + (ex - sx) * 0.5 + lane;
-      add(target, (sx + midX) / 2, sy, Math.abs(midX - sx), 0, width);
-      add(target, midX, (sy + ey) / 2, Math.abs(ey - sy), Math.PI / 2, width);
-      add(target, (midX + ex) / 2, ey, Math.abs(ex - midX), 0, width);
-      add(target, sx + lane * 1.8, sy + lane * 0.18, Math.abs(lane) * 3.2, lane > 0 ? 0.68 : -0.68, width * 0.72);
-    };
-
-    [
-      [-14, 1.4, -41, 8.4, -2.8],
-      [-13, -0.2, -42, -4.8, 2.5],
-      [-10, -2.2, -33, -17, -1.7],
-      [-6, 2.8, -1, 19, 2.2],
-      [-2, 0.6, 35, 8.8, -2.9],
-      [2.5, -1.2, 41, -7.6, 2.8],
-      [7.6, 2.2, 26, 18.4, -1.9],
-      [10, -3.5, 33, -18.5, 2.2],
-      [14, 1.2, 43, 2.4, -2.4],
-      [-3, -5.5, -38, -11, 1.9],
-    ].forEach(([sx, sy, ex, ey, lane], index) => route(strong, sx, sy, ex, ey, lane, index % 2 ? 0.058 : 0.047));
-
-    for (let index = 0; index < 88; index += 1) {
-      const row = index % 9;
-      const family = index % 5;
-      const angle = family === 0 ? Math.PI / 2 : family === 1 ? 0.58 : family === 2 ? -0.58 : 0;
-      add(
-        fine,
-        (seededRandom(index * 9.91) - 0.5) * 88,
-        -21 + row * 5.4 + (seededRandom(index * 3.1) - 0.5) * 1.2,
-        7 + seededRandom(index * 5.43) * 21,
-        angle,
-        0.012 + seededRandom(index * 7.2) * 0.012,
-      );
-    }
-
-    return { fine, strong };
-  }, []);
-
-  const nodes = useMemo<NodeSeed[]>(() => {
-    const fixed: NodeSeed[] = [
-      { x: -37, y: 8.4, s: 0.17 }, { x: -34, y: -4.8, s: 0.14 }, { x: -27, y: -17, s: 0.16 },
-      { x: -1, y: 18.6, s: 0.14 }, { x: 30, y: 8.8, s: 0.18 }, { x: 37, y: -7.6, s: 0.15 },
-      { x: 26, y: 18.2, s: 0.13 }, { x: 33, y: -18, s: 0.16 }, { x: 42, y: 2.4, s: 0.12 },
-    ];
-    const scattered = Array.from({ length: 52 }, (_, index) => ({
-      x: (seededRandom(index * 3.2) - 0.5) * 86,
-      y: (seededRandom(index * 8.4) - 0.5) * 42,
-      s: 0.035 + seededRandom(index * 6.1) * 0.055,
-    }));
-    return [...fixed, ...scattered];
-  }, []);
-
-  const rings = useMemo<RingSeed[]>(() => {
-    return Array.from({ length: 24 }, (_, index) => ({
-      x: (seededRandom(index * 6.13) - 0.5) * 34,
-      y: 0.15 + seededRandom(index * 2.41) * 0.12,
-      z: (seededRandom(index * 9.17) - 0.5) * 23,
-      scale: 0.16 + seededRandom(index * 3.77) * 0.38,
-      rx: -Math.PI / 2 + (seededRandom(index * 5.21) - 0.5) * 0.9,
-      ry: (seededRandom(index * 8.02) - 0.5) * 1.4,
-      rz: seededRandom(index * 4.44) * Math.PI,
-    }));
-  }, []);
-
-  const miniChipPositions = useMemo<[number, number, number][]>(() => [
-    [-2.2, 0.25, -0.9],
-    [-0.8, 0.36, -0.5],
-    [0.7, 0.26, -0.7],
-    [2.0, 0.2, -1.05],
-    [-1.7, -0.42, 0.25],
-    [-0.25, -0.28, 0.38],
-    [1.2, -0.36, 0.14],
-    [0.25, -0.8, 0.95],
-  ], []);
+  const tempPosition = useMemo(() => new THREE.Vector3(), []);
+  const tempQuaternion = useMemo(() => new THREE.Quaternion(), []);
 
   useLayoutEffect(() => {
-    pcbMap.colorSpace = THREE.SRGBColorSpace;
-    pcbMap.wrapS = THREE.ClampToEdgeWrapping;
-    pcbMap.wrapT = THREE.ClampToEdgeWrapping;
-    pcbMap.anisotropy = 8;
+    [squaresMap, normalMap, aoMap, roughnessMap].forEach((texture) => {
+      texture.wrapS = THREE.RepeatWrapping;
+      texture.wrapT = THREE.RepeatWrapping;
+      texture.anisotropy = 8;
+    });
     squaresMap.colorSpace = THREE.SRGBColorSpace;
-    squaresMap.wrapS = THREE.RepeatWrapping;
-    squaresMap.wrapT = THREE.RepeatWrapping;
-    squaresMap.repeat.set(1.6, 1.1);
-    squaresMap.anisotropy = 8;
-  }, [pcbMap, squaresMap]);
+    squaresMap.repeat.set(1.4, 1.4);
+    pcbMap.colorSpace = THREE.SRGBColorSpace;
+    pcbMap.flipY = false;
+    pcbMap.anisotropy = 8;
+    normalMap.repeat.set(50, 50);
+    aoMap.repeat.set(50, 50);
+    roughnessMap.repeat.set(50, 50);
+  }, [aoMap, normalMap, pcbMap, roughnessMap, squaresMap]);
+
+  const glowMaterial = useMemo(() => new THREE.MeshBasicMaterial({
+    blending: THREE.AdditiveBlending,
+    color: "#ff7a1a",
+    depthWrite: false,
+    map: squaresMap,
+    toneMapped: false,
+    transparent: true,
+    opacity: 1,
+  }), [squaresMap]);
+
+  const planeMaterial = useMemo(() => new THREE.MeshBasicMaterial({
+    blending: THREE.AdditiveBlending,
+    color: "#ff4d16",
+    depthWrite: false,
+    map: pcbMap,
+    toneMapped: false,
+    transparent: true,
+    opacity: 0.72,
+  }), [pcbMap]);
+
+  const plasticMaterial = useMemo(() => new THREE.MeshStandardMaterial({
+    aoMap,
+    color: "#050403",
+    emissive: "#180801",
+    emissiveIntensity: 0.22,
+    metalness: 0.62,
+    normalMap,
+    roughness: 0.58,
+    roughnessMap,
+  }), [aoMap, normalMap, roughnessMap]);
+
+  const model = useMemo(() => {
+    const clone = scene.clone(true);
+    clone.traverse((child) => {
+      if (!(child instanceof THREE.Mesh)) return;
+      child.frustumCulled = false;
+      if (child.name.startsWith("Camera")) {
+        child.visible = false;
+      } else if (child.name.includes("GlowBox")) {
+        child.material = glowMaterial;
+      } else if (child.name === "Plane") {
+        child.material = planeMaterial;
+      } else {
+        child.material = plasticMaterial;
+      }
+    });
+    return clone;
+  }, [glowMaterial, planeMaterial, plasticMaterial, scene]);
+
+  const cameraTransforms = useMemo<CameraTransform[]>(() => {
+    model.updateMatrixWorld(true);
+    const transforms: Array<CameraTransform & { name: string }> = [];
+    model.traverse((child) => {
+      if (!child.name.startsWith("Camera")) return;
+      transforms.push({
+        name: child.name,
+        position: child.getWorldPosition(new THREE.Vector3()),
+        quaternion: child.getWorldQuaternion(new THREE.Quaternion()),
+      });
+    });
+    return transforms
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
+      .map(({ position, quaternion }) => ({ position, quaternion }));
+  }, [model]);
 
   useFrame((_, delta) => {
-    const t = performance.now() * 0.001;
-    smoothProgress.current = THREE.MathUtils.damp(smoothProgress.current, progressRef.current, 6.4, delta);
-    const progress = smoothProgress.current;
-    const section = progress * (sectionIds.length - 1);
-    const aboutShift = clamp(section);
-    const marketsShift = clamp(section - 1);
-
-    if (world.current) {
-      world.current.rotation.x = -1.02 + progress * 0.12;
-      world.current.rotation.z = -0.16 + progress * 0.22 + Math.sin(t * 0.08) * 0.012;
-      world.current.position.x = lerp(0, -0.42, marketsShift);
-      world.current.position.y = -2.35 - progress * 0.08;
-      world.current.position.z = -8.1 + progress * 2.25;
-    }
-    if (ringsGroup.current) {
-      ringsGroup.current.rotation.z = -0.12 + progress * 0.22;
-      ringsGroup.current.position.z = -2.1 + progress * 1.05;
-    }
-    if (heroChip.current) {
-      heroChip.current.visible = section < 1.25;
-      heroChip.current.position.x = lerp(-3.1, -0.7, aboutShift);
-      heroChip.current.position.y = 1.52 + Math.sin(t * 0.28) * 0.025;
-      heroChip.current.position.z = lerp(-0.8, -1.9, aboutShift);
-      heroChip.current.rotation.y = lerp(-0.52, -0.2, aboutShift);
-      heroChip.current.rotation.z = lerp(-0.24, -0.02, aboutShift);
-      heroChip.current.scale.setScalar(1.08);
-    }
-    if (aboutChip.current) {
-      aboutChip.current.visible = section >= 0.75 && section < 2.1;
-      aboutChip.current.position.x = lerp(1.25, 2.15, clamp(section - 0.75));
-      aboutChip.current.rotation.z = 0.12 + Math.sin(t * 0.12) * 0.02;
-    }
-    if (marketChips.current) {
-      marketChips.current.visible = section >= 1.55 && section < 3.15;
-      marketChips.current.rotation.y = -0.18 + Math.sin(t * 0.1) * 0.018;
-      marketChips.current.rotation.z = -0.12 + marketsShift * 0.1;
-    }
-    if (tradingGrid.current) {
-      tradingGrid.current.visible = section >= 2.55 && section < 4.25;
-      tradingGrid.current.rotation.y = -0.12 + Math.sin(t * 0.12) * 0.02;
-      tradingGrid.current.position.y = 1.64 + Math.sin(t * 0.2) * 0.028;
-    }
+    if (!cameraTransforms.length) return;
+    smoothProgress.current = THREE.MathUtils.damp(smoothProgress.current, progressRef.current, 5.8, delta);
+    const scaled = smoothProgress.current * (cameraTransforms.length - 1);
+    const index = Math.min(cameraTransforms.length - 2, Math.max(0, Math.floor(scaled)));
+    const nextIndex = Math.min(cameraTransforms.length - 1, index + 1);
+    const localProgress = scaled - index;
+    const current = cameraTransforms[index];
+    const next = cameraTransforms[nextIndex];
+    tempPosition.copy(current.position).lerp(next.position, localProgress);
+    tempQuaternion.copy(current.quaternion).slerp(next.quaternion, localProgress);
+    camera.position.copy(tempPosition);
+    camera.quaternion.copy(tempQuaternion);
   });
 
   return (
-    <group>
-      <group ref={world} position={[0, -2.35, -8.1]} rotation={[-1.02, 0, -0.16]}>
-        <mesh>
-          <planeGeometry args={[92, 52]} />
-          <meshStandardMaterial color="#080301" emissive="#190701" emissiveIntensity={0.4} metalness={0.42} roughness={0.56} />
-        </mesh>
-        <mesh position={[0, -1.4, 0.052]} rotation={[0, 0, -0.02]}>
-          <planeGeometry args={[45, 56.25]} />
-          <meshBasicMaterial blending={THREE.AdditiveBlending} color="#ff5a18" depthWrite={false} map={pcbMap} toneMapped={false} transparent opacity={0.58} />
-        </mesh>
-        <mesh position={[22, 7.6, 0.05]} rotation={[0, 0, -0.06]} scale={0.68}>
-          <planeGeometry args={[45, 56.25]} />
-          <meshBasicMaterial blending={THREE.AdditiveBlending} color="#ff5a18" depthWrite={false} map={pcbMap} toneMapped={false} transparent opacity={0.28} />
-        </mesh>
-        <mesh position={[-26, -9.5, 0.05]} rotation={[0, 0, 0.08]} scale={0.62}>
-          <planeGeometry args={[45, 56.25]} />
-          <meshBasicMaterial blending={THREE.AdditiveBlending} color="#ff5a18" depthWrite={false} map={pcbMap} toneMapped={false} transparent opacity={0.24} />
-        </mesh>
-
-        {boardPlates.map((plate, index) => (
-          <mesh key={`plate-${index}`} position={[plate.x, plate.y, 0.034]} rotation={[0, 0, plate.angle]}>
-            <boxGeometry args={[plate.width, plate.height, 0.02]} />
-            <meshStandardMaterial color="#050201" emissive="#240801" emissiveIntensity={0.34} metalness={0.45} roughness={0.54} />
-          </mesh>
-        ))}
-
-        <InstancedTraces traces={traces.strong} z={0.07} opacity={0.98} />
-        <InstancedTraces traces={traces.fine} z={0.062} opacity={0.62} />
-        <InstancedNodes nodes={nodes} />
-      </group>
-
-      <group ref={ringsGroup} position={[0, -2.84, -2.1]} rotation={[-1.02, 0, -0.12]}>
-        <InstancedRings rings={rings} />
-      </group>
-
-      <group ref={heroChip} position={[-3.1, 1.52, -0.8]} rotation={[0.03, -0.52, -0.24]}>
-        <PingChip size="hero" squaresMap={squaresMap} />
-      </group>
-
-      <group ref={aboutChip} position={[1.25, 1.42, -2.05]} rotation={[0.02, -0.24, 0.12]} scale={1.08} visible={false}>
-        <PingChip size="large" squaresMap={squaresMap} />
-      </group>
-
-      <group ref={marketChips} position={[-0.85, 1.82, -2.55]} rotation={[0.02, -0.18, -0.12]} scale={0.88} visible={false}>
-        {[
-          [-1.3, 0.22, -0.42],
-          [0.2, -0.02, 0.08],
-          [1.44, 0.18, -0.35],
-        ].map((position, index) => (
-          <group key={`market-chip-${index}`} position={position as [number, number, number]} rotation={[0, -0.04 + index * 0.18, -0.05 + index * 0.06]}>
-            <PingChip size="large" squaresMap={squaresMap} />
-          </group>
-        ))}
-      </group>
-
-      <group ref={tradingGrid} position={[0.7, 1.64, -2.8]} rotation={[0, -0.12, -0.06]} scale={0.78} visible={false}>
-        {miniChipPositions.map((position, index) => (
-          <group key={`mini-chip-${index}`} position={position} rotation={[0, index * 0.08, index * 0.05]}>
-            <PingChip size="mini" squaresMap={squaresMap} />
-          </group>
-        ))}
-        <group position={[-2.4, 0.2, 0.65]} rotation={[0.25, -0.2, -0.35]} scale={0.36}>
-          <PingRing accentBand />
-        </group>
-      </group>
-    </group>
+    <primitive object={model} />
   );
 }
 
