@@ -1,5 +1,5 @@
 import { AdaptiveDpr, Environment, PerspectiveCamera, Preload } from "@react-three/drei";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame, useLoader } from "@react-three/fiber";
 import type { MutableRefObject } from "react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
@@ -41,6 +41,8 @@ type NodeSeed = {
 };
 
 const accent = "#ff4d16";
+const pcbTexturePath = "/assets/raven/chip2.webp";
+const squaresTexturePath = "/assets/raven/squares.webp";
 const sectionIds = ["top", "about", "markets", "platform", "industry", "why"];
 
 const marketCards = [
@@ -200,7 +202,7 @@ function CircuitScene({ onReady, progressRef }: { onReady: () => void; progressR
   );
 }
 
-function PingChip({ size = "large" }: { size?: "hero" | "large" | "mini" }) {
+function PingChip({ size = "large", squaresMap }: { size?: "hero" | "large" | "mini"; squaresMap?: THREE.Texture }) {
   const isHero = size === "hero";
   const isMini = size === "mini";
   const body: [number, number, number] = isHero ? [4.6, 0.56, 3.1] : isMini ? [1.55, 0.3, 1.08] : [2.55, 0.42, 1.72];
@@ -213,7 +215,7 @@ function PingChip({ size = "large" }: { size?: "hero" | "large" | "mini" }) {
     <group>
       <mesh position={[0, -body[1] * 0.42, 0]}>
         <boxGeometry args={glow} />
-        <meshBasicMaterial color="#ffb445" toneMapped={false} transparent opacity={0.72} />
+        <meshBasicMaterial color="#ffb445" map={squaresMap} toneMapped={false} transparent opacity={0.82} />
       </mesh>
       <mesh>
         <boxGeometry args={body} />
@@ -365,6 +367,7 @@ function InstancedRings({ rings }: { rings: RingSeed[] }) {
 }
 
 function HardwareStage({ progressRef }: { progressRef: MutableRefObject<number> }) {
+  const [pcbMap, squaresMap] = useLoader(THREE.TextureLoader, [pcbTexturePath, squaresTexturePath]);
   const world = useRef<THREE.Group>(null);
   const heroChip = useRef<THREE.Group>(null);
   const aboutChip = useRef<THREE.Group>(null);
@@ -462,6 +465,18 @@ function HardwareStage({ progressRef }: { progressRef: MutableRefObject<number> 
     [0.25, -0.8, 0.95],
   ], []);
 
+  useLayoutEffect(() => {
+    pcbMap.colorSpace = THREE.SRGBColorSpace;
+    pcbMap.wrapS = THREE.ClampToEdgeWrapping;
+    pcbMap.wrapT = THREE.ClampToEdgeWrapping;
+    pcbMap.anisotropy = 8;
+    squaresMap.colorSpace = THREE.SRGBColorSpace;
+    squaresMap.wrapS = THREE.RepeatWrapping;
+    squaresMap.wrapT = THREE.RepeatWrapping;
+    squaresMap.repeat.set(1.6, 1.1);
+    squaresMap.anisotropy = 8;
+  }, [pcbMap, squaresMap]);
+
   useFrame((_, delta) => {
     const t = performance.now() * 0.001;
     smoothProgress.current = THREE.MathUtils.damp(smoothProgress.current, progressRef.current, 6.4, delta);
@@ -514,6 +529,18 @@ function HardwareStage({ progressRef }: { progressRef: MutableRefObject<number> 
           <planeGeometry args={[92, 52]} />
           <meshStandardMaterial color="#080301" emissive="#190701" emissiveIntensity={0.4} metalness={0.42} roughness={0.56} />
         </mesh>
+        <mesh position={[0, -1.4, 0.052]} rotation={[0, 0, -0.02]}>
+          <planeGeometry args={[45, 56.25]} />
+          <meshBasicMaterial blending={THREE.AdditiveBlending} color="#ff5a18" depthWrite={false} map={pcbMap} toneMapped={false} transparent opacity={0.58} />
+        </mesh>
+        <mesh position={[22, 7.6, 0.05]} rotation={[0, 0, -0.06]} scale={0.68}>
+          <planeGeometry args={[45, 56.25]} />
+          <meshBasicMaterial blending={THREE.AdditiveBlending} color="#ff5a18" depthWrite={false} map={pcbMap} toneMapped={false} transparent opacity={0.28} />
+        </mesh>
+        <mesh position={[-26, -9.5, 0.05]} rotation={[0, 0, 0.08]} scale={0.62}>
+          <planeGeometry args={[45, 56.25]} />
+          <meshBasicMaterial blending={THREE.AdditiveBlending} color="#ff5a18" depthWrite={false} map={pcbMap} toneMapped={false} transparent opacity={0.24} />
+        </mesh>
 
         {boardPlates.map((plate, index) => (
           <mesh key={`plate-${index}`} position={[plate.x, plate.y, 0.034]} rotation={[0, 0, plate.angle]}>
@@ -532,11 +559,11 @@ function HardwareStage({ progressRef }: { progressRef: MutableRefObject<number> 
       </group>
 
       <group ref={heroChip} position={[-3.1, 1.52, -0.8]} rotation={[0.03, -0.52, -0.24]}>
-        <PingChip size="hero" />
+        <PingChip size="hero" squaresMap={squaresMap} />
       </group>
 
       <group ref={aboutChip} position={[1.25, 1.42, -2.05]} rotation={[0.02, -0.24, 0.12]} scale={1.08} visible={false}>
-        <PingChip size="large" />
+        <PingChip size="large" squaresMap={squaresMap} />
       </group>
 
       <group ref={marketChips} position={[-0.85, 1.82, -2.55]} rotation={[0.02, -0.18, -0.12]} scale={0.88} visible={false}>
@@ -546,7 +573,7 @@ function HardwareStage({ progressRef }: { progressRef: MutableRefObject<number> 
           [1.44, 0.18, -0.35],
         ].map((position, index) => (
           <group key={`market-chip-${index}`} position={position as [number, number, number]} rotation={[0, -0.04 + index * 0.18, -0.05 + index * 0.06]}>
-            <PingChip size="large" />
+            <PingChip size="large" squaresMap={squaresMap} />
           </group>
         ))}
       </group>
@@ -554,7 +581,7 @@ function HardwareStage({ progressRef }: { progressRef: MutableRefObject<number> 
       <group ref={tradingGrid} position={[0.7, 1.64, -2.8]} rotation={[0, -0.12, -0.06]} scale={0.78} visible={false}>
         {miniChipPositions.map((position, index) => (
           <group key={`mini-chip-${index}`} position={position} rotation={[0, index * 0.08, index * 0.05]}>
-            <PingChip size="mini" />
+            <PingChip size="mini" squaresMap={squaresMap} />
           </group>
         ))}
         <group position={[-2.4, 0.2, 0.65]} rotation={[0.25, -0.2, -0.35]} scale={0.36}>
