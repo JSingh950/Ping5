@@ -1,5 +1,6 @@
 import { Environment, PerspectiveCamera, Preload } from "@react-three/drei";
 import { Canvas, useFrame } from "@react-three/fiber";
+import type { MutableRefObject } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
@@ -10,6 +11,14 @@ type PingStorePageProps = {
 type Trace = {
   angle: number;
   length: number;
+  x: number;
+  y: number;
+  width: number;
+};
+
+type BoardPlate = {
+  angle: number;
+  height: number;
   x: number;
   y: number;
   width: number;
@@ -136,14 +145,16 @@ function seededRandom(seed: number) {
 }
 
 function useScrollState() {
-  const [state, setState] = useState({ active: 0, progress: 0 });
+  const progressRef = useRef(0);
+  const [active, setActive] = useState(0);
 
   useEffect(() => {
     const update = () => {
       const max = Math.max(1, window.innerHeight * (sectionIds.length - 1));
       const progress = clamp(window.scrollY / max);
-      const active = Math.min(sectionIds.length - 1, Math.max(0, Math.round(progress * (sectionIds.length - 1))));
-      setState({ active, progress });
+      const nextActive = Math.min(sectionIds.length - 1, Math.max(0, Math.round(progress * (sectionIds.length - 1))));
+      progressRef.current = progress;
+      setActive((current) => (current === nextActive ? current : nextActive));
     };
 
     update();
@@ -155,27 +166,26 @@ function useScrollState() {
     };
   }, []);
 
-  return state;
+  return { active, progressRef };
 }
 
-function CircuitScene({ onReady, progress }: { onReady: () => void; progress: number }) {
+function CircuitScene({ onReady, progressRef }: { onReady: () => void; progressRef: MutableRefObject<number> }) {
   return (
     <div className="fixed inset-0 z-0 h-screen w-screen bg-black">
       <Canvas
         className="h-full w-full"
-        dpr={[1, 1.6]}
-        gl={{ antialias: true, alpha: false, powerPreference: "high-performance" }}
+        dpr={[1, 1.25]}
+        gl={{ antialias: true, alpha: false, powerPreference: "high-performance", stencil: false }}
         onCreated={onReady}
-        shadows
       >
         <PerspectiveCamera makeDefault fov={36} position={[0.15, 3.6, 8.4]} />
         <color attach="background" args={["#000000"]} />
         <fog attach="fog" args={["#000000", 8, 26]} />
         <ambientLight intensity={0.12} />
-        <directionalLight castShadow color="#ffffff" intensity={0.95} position={[4.5, 7, 5]} />
+        <directionalLight color="#ffffff" intensity={0.95} position={[4.5, 7, 5]} />
         <pointLight color={accent} intensity={230} distance={18} position={[-2.1, 1.1, 1.2]} />
         <pointLight color={accent} intensity={120} distance={20} position={[5, -1.2, -7]} />
-        <HardwareStage progress={progress} />
+        <HardwareStage progressRef={progressRef} />
         <Environment preset="night" />
         <Preload all />
       </Canvas>
@@ -251,7 +261,7 @@ function RingModel({ accentBand = false }: { accentBand?: boolean }) {
   );
 }
 
-function HardwareStage({ progress }: { progress: number }) {
+function HardwareStage({ progressRef }: { progressRef: MutableRefObject<number> }) {
   const stage = useRef<THREE.Group>(null);
   const chip = useRef<THREE.Group>(null);
   const marketCluster = useRef<THREE.Group>(null);
@@ -259,15 +269,37 @@ function HardwareStage({ progress }: { progress: number }) {
   const industryCluster = useRef<THREE.Group>(null);
   const ringField = useRef<THREE.Group>(null);
   const heroRings = useRef<THREE.Group>(null);
+  const smoothProgress = useRef(0);
+
+  const boardPlates = useMemo<BoardPlate[]>(() => [
+    { x: -14, y: 7.8, width: 18, height: 6.2, angle: 0.2 },
+    { x: 8.5, y: 8.4, width: 21, height: 6.6, angle: -0.16 },
+    { x: -22, y: -4.5, width: 17, height: 5.2, angle: -0.1 },
+    { x: 17, y: -5.6, width: 19, height: 6.1, angle: 0.18 },
+    { x: 0, y: -12.2, width: 24, height: 5.8, angle: 0.04 },
+  ], []);
 
   const traces = useMemo<Trace[]>(() => {
-    return Array.from({ length: 145 }, (_, index) => ({
-      angle: (seededRandom(index * 2.71) - 0.5) * 0.34,
-      length: 4 + seededRandom(index * 5.43) * 16,
+    const anchors = [
+      [-24, -9], [-18, -5], [-14, 2], [-8, 6], [-3, -2], [3, 4],
+      [9, -1], [14, 7], [18, -7], [24, 2], [29, -11], [-29, 8],
+    ];
+    const strong = anchors.flatMap(([x, y], index) => {
+      const direction = index % 3 === 0 ? 0 : index % 3 === 1 ? 0.64 : -0.64;
+      return [
+        { x, y, length: 18 + (index % 4) * 3, width: 0.045, angle: direction },
+        { x: x + 4.6, y: y + 2.25, length: 13 + (index % 5) * 2.3, width: 0.034, angle: direction },
+        { x: x - 5.2, y: y - 2.1, length: 9 + (index % 6) * 2.1, width: 0.026, angle: direction + (index % 2 ? 0.55 : -0.55) },
+      ];
+    });
+    const hairlines = Array.from({ length: 72 }, (_, index) => ({
+      angle: (seededRandom(index * 2.71) - 0.5) * 0.18 + (index % 2 ? 0.58 : -0.58),
+      length: 7 + seededRandom(index * 5.43) * 18,
       x: (seededRandom(index * 9.91) - 0.5) * 78,
       y: (seededRandom(index * 4.19) - 0.5) * 38,
-      width: 0.012 + seededRandom(index * 7.2) * 0.026,
+      width: 0.012 + seededRandom(index * 7.2) * 0.018,
     }));
+    return [...strong, ...hairlines];
   }, []);
 
   const nodes = useMemo(() => {
@@ -290,8 +322,10 @@ function HardwareStage({ progress }: { progress: number }) {
     }));
   }, []);
 
-  useFrame(({ clock }) => {
+  useFrame(({ clock }, delta) => {
     const t = clock.elapsedTime;
+    smoothProgress.current = THREE.MathUtils.damp(smoothProgress.current, progressRef.current, 6.4, delta);
+    const progress = smoothProgress.current;
     const section = progress * (sectionIds.length - 1);
     const aboutShift = clamp(section);
     const marketsShift = clamp(section - 1);
@@ -316,14 +350,14 @@ function HardwareStage({ progress }: { progress: number }) {
       heroRings.current.visible = section < 4.8;
     }
     if (chip.current) {
-      chip.current.visible = section < 2.35;
+      chip.current.visible = section < 1.48;
       chip.current.position.x = objectX;
       chip.current.position.y = objectY + Math.sin(t * 0.42) * 0.045;
       chip.current.position.z = objectZ;
       chip.current.rotation.x = -0.08 + Math.sin(t * 0.22) * 0.012;
       chip.current.rotation.z = lerp(-0.3, 0.1, aboutShift);
       chip.current.rotation.y = lerp(-0.58, -0.1, aboutShift);
-      chip.current.scale.setScalar(lerp(1.35, 1.62, aboutShift));
+      chip.current.scale.setScalar(lerp(1.04, 1.24, aboutShift));
     }
     if (marketCluster.current) {
       marketCluster.current.visible = section >= 1.55 && section < 3.05;
@@ -351,10 +385,17 @@ function HardwareStage({ progress }: { progress: number }) {
           <meshStandardMaterial color="#100501" emissive="#1d0701" emissiveIntensity={0.34} metalness={0.28} roughness={0.5} />
         </mesh>
 
+        {boardPlates.map((plate, index) => (
+          <mesh key={`plate-${index}`} position={[plate.x, plate.y, 0.032]} rotation={[0, 0, plate.angle]}>
+            <boxGeometry args={[plate.width, plate.height, 0.02]} />
+            <meshStandardMaterial color="#070200" emissive="#210801" emissiveIntensity={0.26} metalness={0.38} roughness={0.62} />
+          </mesh>
+        ))}
+
         {traces.map((trace, index) => (
           <mesh key={`trace-${index}`} position={[trace.x, trace.y, 0.055]} rotation={[0, 0, trace.angle]}>
             <boxGeometry args={[trace.length, trace.width, 0.022]} />
-            <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.72} toneMapped={false} />
+            <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={index < 36 ? 1.2 : 0.68} toneMapped={false} />
           </mesh>
         ))}
 
@@ -395,7 +436,7 @@ function HardwareStage({ progress }: { progress: number }) {
         <ChipModel />
       </group>
 
-      <group ref={marketCluster} position={[-0.9, 2.03, -1.25]} rotation={[0, -0.2, -0.18]} scale={1.18} visible={false}>
+      <group ref={marketCluster} position={[-0.75, 2.03, -2.45]} rotation={[0, -0.2, -0.18]} scale={0.82} visible={false}>
         {[
           [-1.35, 0.02, -0.55],
           [0.3, 0.2, -0.62],
@@ -413,7 +454,7 @@ function HardwareStage({ progress }: { progress: number }) {
         </group>
       </group>
 
-      <group ref={platformCluster} position={[1.08, 1.78, -1.7]} rotation={[0, -0.15, -0.08]} scale={0.8} visible={false}>
+      <group ref={platformCluster} position={[1.08, 1.78, -2.35]} rotation={[0, -0.15, -0.08]} scale={0.68} visible={false}>
         {[
           [-1.6, 0.18, -0.7],
           [-0.55, 0.36, -0.35],
@@ -439,7 +480,7 @@ function HardwareStage({ progress }: { progress: number }) {
         ))}
       </group>
 
-      <group ref={industryCluster} position={[0.2, 1.74, -1.18]} rotation={[0, -0.24, -0.12]} scale={1.02} visible={false}>
+      <group ref={industryCluster} position={[0.2, 1.74, -2.2]} rotation={[0, -0.24, -0.12]} scale={0.78} visible={false}>
         <group position={[-1.35, 0.1, 0]} rotation={[0, -0.2, -0.1]}>
           <ChipModel />
         </group>
@@ -754,7 +795,7 @@ function Footer() {
 }
 
 export function PingStorePage(_: PingStorePageProps) {
-  const { active, progress } = useScrollState();
+  const { active, progressRef } = useScrollState();
   const [ready, setReady] = useState(false);
   const [bootDone, setBootDone] = useState(false);
 
@@ -772,7 +813,7 @@ export function PingStorePage(_: PingStorePageProps) {
 
   return (
     <main className="min-h-screen overflow-x-hidden bg-black text-white">
-      <CircuitScene onReady={() => setReady(true)} progress={progress} />
+      <CircuitScene onReady={() => setReady(true)} progressRef={progressRef} />
       <Loader visible={!ready || !bootDone} />
       <Header />
       <ProgressRail active={active} />
