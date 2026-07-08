@@ -322,8 +322,8 @@ function HardwareStage({ progressRef }: { progressRef: MutableRefObject<number> 
     }));
   }, []);
 
-  useFrame(({ clock }, delta) => {
-    const t = clock.elapsedTime;
+  useFrame((_, delta) => {
+    const t = performance.now() * 0.001;
     smoothProgress.current = THREE.MathUtils.damp(smoothProgress.current, progressRef.current, 6.4, delta);
     const progress = smoothProgress.current;
     const section = progress * (sectionIds.length - 1);
