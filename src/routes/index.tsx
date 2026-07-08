@@ -4,17 +4,17 @@ import { PingStorePage } from "@/components/PingStorePage";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Ping! — WebGL Identity Protocol" },
+      { title: "Ping! — NFC Identity Network" },
       {
         name: "description",
         content:
-          "A Raven-inspired WebGL homepage for Ping!, the titanium NFC identity ring by Ping Ring Inc.",
+          "A dark WebGL homepage for Ping!, the titanium NFC identity ring by Ping Ring Inc.",
       },
-      { property: "og:title", content: "Ping! — WebGL Identity Protocol" },
+      { property: "og:title", content: "Ping! — NFC Identity Network" },
       {
         property: "og:description",
         content:
-          "A black, white, and electric-green WebGL product experience with floating titanium smart rings.",
+          "A black, white, and orange product experience for the Ping! identity ring.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
