@@ -200,75 +200,87 @@ function CircuitScene({ onReady, progressRef }: { onReady: () => void; progressR
   );
 }
 
-function ChipModel({ mini = false }: { mini?: boolean }) {
-  const body = mini ? [1.35, 0.28, 0.92] : [3.25, 0.5, 2.18];
-  const glow = mini ? [1.42, 0.24, 0.98] : [3.38, 0.42, 2.32];
-  const pins = mini ? 6 : 16;
-  const pinStep = mini ? 0.25 : 0.41;
-  const pinStart = mini ? -0.62 : -1.45;
-  const pinZ = mini ? 0.56 : 1.25;
+function PingChip({ size = "large" }: { size?: "hero" | "large" | "mini" }) {
+  const isHero = size === "hero";
+  const isMini = size === "mini";
+  const body: [number, number, number] = isHero ? [4.6, 0.56, 3.1] : isMini ? [1.55, 0.3, 1.08] : [2.55, 0.42, 1.72];
+  const glow: [number, number, number] = [body[0] * 1.03, body[1] * 0.62, body[2] * 1.03];
+  const topY = body[1] / 2 + 0.016;
+  const pinCount = isMini ? 5 : isHero ? 15 : 9;
+  const pinStep = body[0] / (pinCount + 1);
 
   return (
-    <>
-      <mesh castShadow receiveShadow>
-        <boxGeometry args={body as [number, number, number]} />
-        <meshStandardMaterial color="#211609" metalness={0.86} roughness={0.2} emissive="#4a2104" emissiveIntensity={0.22} />
+    <group>
+      <mesh position={[0, -body[1] * 0.42, 0]}>
+        <boxGeometry args={glow} />
+        <meshBasicMaterial color="#ffb445" toneMapped={false} transparent opacity={0.72} />
       </mesh>
-      <mesh position={[0, mini ? -0.2 : -0.34, 0]}>
-        <boxGeometry args={glow as [number, number, number]} />
-        <meshStandardMaterial color="#5e2106" emissive="#ffb13d" emissiveIntensity={1.25} toneMapped={false} roughness={0.32} />
+      <mesh>
+        <boxGeometry args={body} />
+        <meshStandardMaterial color="#0b0805" metalness={0.72} roughness={0.24} emissive="#2f1003" emissiveIntensity={0.26} />
       </mesh>
-      {Array.from({ length: mini ? 6 : 18 }).map((_, index) => (
+      <mesh position={[0, topY, 0]}>
+        <boxGeometry args={[body[0] * 0.86, 0.018, body[2] * 0.74]} />
+        <meshStandardMaterial color="#1a1108" metalness={0.9} roughness={0.17} emissive="#160702" emissiveIntensity={0.2} />
+      </mesh>
+      <mesh position={[0, topY + 0.018, 0]} rotation={[0, 0, Math.PI / 6]}>
+        <cylinderGeometry args={[isMini ? 0.28 : 0.46, isMini ? 0.28 : 0.46, 0.018, 6]} />
+        <meshBasicMaterial color="#ffdd92" toneMapped={false} transparent opacity={0.82} />
+      </mesh>
+      {[-0.34, 0, 0.34].map((offset) => (
+        <mesh key={`chip-mark-${offset}`} position={[offset * body[0] * 0.25, topY + 0.036, 0]} rotation={[0, 0, -0.45]}>
+          <boxGeometry args={[isMini ? 0.34 : 0.56, 0.018, isMini ? 0.06 : 0.1]} />
+          <meshBasicMaterial color="#fff3cf" toneMapped={false} />
+        </mesh>
+      ))}
+      {Array.from({ length: pinCount }).map((_, index) => {
+        const x = -body[0] / 2 + (index + 1) * pinStep;
+        return (
+          <group key={`pin-row-${index}`}>
+            <mesh position={[x, -body[1] * 0.22, body[2] / 2 + 0.16]}>
+              <boxGeometry args={[isMini ? 0.08 : 0.12, isMini ? 0.1 : 0.16, isMini ? 0.22 : 0.38]} />
+              <meshBasicMaterial color="#ff7a24" toneMapped={false} />
+            </mesh>
+            <mesh position={[x, -body[1] * 0.22, -body[2] / 2 - 0.16]}>
+              <boxGeometry args={[isMini ? 0.08 : 0.12, isMini ? 0.1 : 0.16, isMini ? 0.22 : 0.38]} />
+              <meshBasicMaterial color="#ff7a24" toneMapped={false} />
+            </mesh>
+          </group>
+        );
+      })}
+      {Array.from({ length: isHero ? 24 : isMini ? 6 : 12 }).map((_, index) => (
         <mesh
-          key={`mosaic-${index}`}
+          key={`chip-window-${index}`}
           position={[
-            (seededRandom(index * 4.7) - 0.5) * (mini ? 1.1 : 2.85),
-            mini ? -0.06 : -0.08,
-            (seededRandom(index * 8.2) - 0.5) * (mini ? 0.7 : 1.85),
+            (seededRandom(index * 4.7) - 0.5) * body[0] * 0.82,
+            -body[1] * 0.36,
+            (seededRandom(index * 8.2) - 0.5) * body[2] * 0.72,
           ]}
         >
-          <boxGeometry args={[mini ? 0.11 : 0.2, mini ? 0.03 : 0.05, mini ? 0.08 : 0.13]} />
-          <meshStandardMaterial color="#ffe39d" emissive="#ffbe45" emissiveIntensity={1.15} toneMapped={false} />
+          <boxGeometry args={[isMini ? 0.08 : 0.16, isMini ? 0.032 : 0.048, isMini ? 0.06 : 0.11]} />
+          <meshBasicMaterial color="#ffe099" toneMapped={false} transparent opacity={0.82} />
         </mesh>
       ))}
-      <mesh position={[mini ? -0.18 : -0.72, mini ? 0.18 : 0.31, 0.03]} rotation={[0, 0, -0.48]}>
-        <boxGeometry args={[mini ? 0.42 : 1.08, 0.045, 0.15]} />
-        <meshStandardMaterial color="#fff2de" emissive="#ffb064" emissiveIntensity={0.42} toneMapped={false} />
-      </mesh>
-      <mesh position={[mini ? 0.08 : -0.27, mini ? 0.2 : 0.34, 0.03]} rotation={[0, 0, 0.48]}>
-        <boxGeometry args={[mini ? 0.3 : 0.72, 0.045, 0.15]} />
-        <meshStandardMaterial color="#fff2de" emissive="#ffb064" emissiveIntensity={0.42} toneMapped={false} />
-      </mesh>
-      {Array.from({ length: pins }).map((_, index) => (
-        <mesh key={`pin-${index}`} position={[pinStart + (index % Math.ceil(pins / 2)) * pinStep, mini ? -0.05 : -0.09, index < pins / 2 ? -pinZ : pinZ]}>
-          <boxGeometry args={[mini ? 0.07 : 0.11, mini ? 0.1 : 0.15, mini ? 0.2 : 0.36]} />
-          <meshStandardMaterial color="#ff7a2a" emissive={accent} emissiveIntensity={1.1} toneMapped={false} />
-        </mesh>
-      ))}
-    </>
+    </group>
   );
 }
 
-function RingModel({ accentBand = false }: { accentBand?: boolean }) {
+function PingRing({ accentBand = false }: { accentBand?: boolean }) {
   return (
     <group>
-      <mesh castShadow receiveShadow rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[0.56, 0.09, 16, 56]} />
-        <meshStandardMaterial color="#030303" metalness={0.98} roughness={0.12} envMapIntensity={2.1} />
+      <mesh rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.56, 0.09, 16, 60]} />
+        <meshStandardMaterial color="#020202" metalness={1} roughness={0.1} envMapIntensity={2.2} />
       </mesh>
       <mesh rotation={[Math.PI / 2, 0, 0]} scale={1.02}>
-        <torusGeometry args={[0.56, 0.012, 8, 56]} />
-        <meshStandardMaterial color={accentBand ? accent : "#151515"} emissive={accentBand ? accent : "#000000"} emissiveIntensity={accentBand ? 1.6 : 0.1} toneMapped={false} />
-      </mesh>
-      <mesh rotation={[Math.PI / 2, 0, 0]} scale={0.74}>
-        <torusGeometry args={[0.56, 0.009, 8, 56]} />
-        <meshStandardMaterial color="#ffffff" emissive="#553018" emissiveIntensity={0.18} toneMapped={false} opacity={0.42} transparent />
+        <torusGeometry args={[0.56, 0.012, 8, 60]} />
+        <meshBasicMaterial color={accentBand ? accent : "#252525"} toneMapped={false} transparent opacity={accentBand ? 0.84 : 0.46} />
       </mesh>
     </group>
   );
 }
 
-function InstancedTraces({ traces, z, intensity }: { traces: Trace[]; z: number; intensity: number }) {
+function InstancedTraces({ traces, opacity, z }: { opacity: number; traces: Trace[]; z: number }) {
   const ref = useRef<THREE.InstancedMesh>(null);
 
   useLayoutEffect(() => {
@@ -290,7 +302,7 @@ function InstancedTraces({ traces, z, intensity }: { traces: Trace[]; z: number;
   return (
     <instancedMesh ref={ref} args={[undefined, undefined, traces.length]} frustumCulled={false}>
       <boxGeometry args={[1, 1, 1]} />
-      <meshBasicMaterial color={accent} toneMapped={false} transparent opacity={intensity > 1 ? 1 : 0.82} />
+      <meshBasicMaterial color={accent} toneMapped={false} transparent opacity={opacity} />
     </instancedMesh>
   );
 }
@@ -317,7 +329,7 @@ function InstancedNodes({ nodes }: { nodes: NodeSeed[] }) {
   );
 }
 
-function InstancedRingField({ rings }: { rings: RingSeed[] }) {
+function InstancedRings({ rings }: { rings: RingSeed[] }) {
   const shell = useRef<THREE.InstancedMesh>(null);
   const glints = useRef<THREE.InstancedMesh>(null);
 
@@ -353,21 +365,20 @@ function InstancedRingField({ rings }: { rings: RingSeed[] }) {
 }
 
 function HardwareStage({ progressRef }: { progressRef: MutableRefObject<number> }) {
-  const stage = useRef<THREE.Group>(null);
-  const chip = useRef<THREE.Group>(null);
-  const marketCluster = useRef<THREE.Group>(null);
-  const platformCluster = useRef<THREE.Group>(null);
-  const industryCluster = useRef<THREE.Group>(null);
-  const ringField = useRef<THREE.Group>(null);
-  const heroRings = useRef<THREE.Group>(null);
+  const world = useRef<THREE.Group>(null);
+  const heroChip = useRef<THREE.Group>(null);
+  const aboutChip = useRef<THREE.Group>(null);
+  const marketChips = useRef<THREE.Group>(null);
+  const tradingGrid = useRef<THREE.Group>(null);
+  const ringsGroup = useRef<THREE.Group>(null);
   const smoothProgress = useRef(0);
 
   const boardPlates = useMemo<BoardPlate[]>(() => [
-    { x: -14, y: 7.8, width: 18, height: 6.2, angle: 0.2 },
-    { x: 8.5, y: 8.4, width: 21, height: 6.6, angle: -0.16 },
-    { x: -22, y: -4.5, width: 17, height: 5.2, angle: -0.1 },
-    { x: 17, y: -5.6, width: 19, height: 6.1, angle: 0.18 },
-    { x: 0, y: -12.2, width: 24, height: 5.8, angle: 0.04 },
+    { x: -22, y: 7, width: 25, height: 7.6, angle: 0.12 },
+    { x: 4, y: 6.8, width: 28, height: 7.2, angle: -0.08 },
+    { x: 27, y: -3.8, width: 22, height: 6.4, angle: 0.14 },
+    { x: -20, y: -8.8, width: 26, height: 6.8, angle: -0.12 },
+    { x: 1, y: -15.6, width: 31, height: 6.2, angle: 0.04 },
   ], []);
 
   const traces = useMemo(() => {
@@ -377,35 +388,37 @@ function HardwareStage({ progressRef }: { progressRef: MutableRefObject<number> 
       target.push({ x, y, length, angle, width });
     };
     const route = (target: Trace[], sx: number, sy: number, ex: number, ey: number, lane: number, width: number) => {
-      const midX = sx + (ex - sx) * 0.54;
+      const midX = sx + (ex - sx) * 0.5 + lane;
       add(target, (sx + midX) / 2, sy, Math.abs(midX - sx), 0, width);
       add(target, midX, (sy + ey) / 2, Math.abs(ey - sy), Math.PI / 2, width);
       add(target, (midX + ex) / 2, ey, Math.abs(ex - midX), 0, width);
-      add(target, sx + lane, sy + lane * 0.2, Math.abs(lane) * 2.2, lane > 0 ? 0.72 : -0.72, width * 0.74);
+      add(target, sx + lane * 1.8, sy + lane * 0.18, Math.abs(lane) * 3.2, lane > 0 ? 0.68 : -0.68, width * 0.72);
     };
 
     [
-      [-9.5, 3.8, -35, 7.6, -2.4],
-      [-8.7, 1.7, -37, -4.6, 2.8],
-      [-6.4, -2.4, -28, -15.2, -1.8],
-      [-2.1, 4.8, 4, 16.2, 2.2],
-      [0.8, 2.2, 31, 8.4, -2.8],
-      [3.5, -1.2, 37, -7.8, 2.5],
-      [7.2, 3.1, 23, 17.6, -1.9],
-      [10.4, -3.8, 30, -17.2, 2.1],
-    ].forEach(([sx, sy, ex, ey, lane], index) => route(strong, sx, sy, ex, ey, lane, index % 2 ? 0.052 : 0.044));
+      [-14, 1.4, -41, 8.4, -2.8],
+      [-13, -0.2, -42, -4.8, 2.5],
+      [-10, -2.2, -33, -17, -1.7],
+      [-6, 2.8, -1, 19, 2.2],
+      [-2, 0.6, 35, 8.8, -2.9],
+      [2.5, -1.2, 41, -7.6, 2.8],
+      [7.6, 2.2, 26, 18.4, -1.9],
+      [10, -3.5, 33, -18.5, 2.2],
+      [14, 1.2, 43, 2.4, -2.4],
+      [-3, -5.5, -38, -11, 1.9],
+    ].forEach(([sx, sy, ex, ey, lane], index) => route(strong, sx, sy, ex, ey, lane, index % 2 ? 0.058 : 0.047));
 
-    for (let index = 0; index < 48; index += 1) {
-      const band = index % 6;
-      const isVertical = index % 4 === 0;
-      const angle = isVertical ? Math.PI / 2 : band === 1 ? 0.58 : band === 4 ? -0.58 : 0;
+    for (let index = 0; index < 88; index += 1) {
+      const row = index % 9;
+      const family = index % 5;
+      const angle = family === 0 ? Math.PI / 2 : family === 1 ? 0.58 : family === 2 ? -0.58 : 0;
       add(
         fine,
-        (seededRandom(index * 9.91) - 0.5) * 76,
-        -17 + band * 6.4 + (seededRandom(index * 3.1) - 0.5) * 1.6,
-        8 + seededRandom(index * 5.43) * 18,
+        (seededRandom(index * 9.91) - 0.5) * 88,
+        -21 + row * 5.4 + (seededRandom(index * 3.1) - 0.5) * 1.2,
+        7 + seededRandom(index * 5.43) * 21,
         angle,
-        0.014 + seededRandom(index * 7.2) * 0.014,
+        0.012 + seededRandom(index * 7.2) * 0.012,
       );
     }
 
@@ -414,29 +427,40 @@ function HardwareStage({ progressRef }: { progressRef: MutableRefObject<number> 
 
   const nodes = useMemo<NodeSeed[]>(() => {
     const fixed: NodeSeed[] = [
-      { x: -31, y: 7.6, s: 0.18 }, { x: -27.5, y: -4.6, s: 0.14 }, { x: -21, y: -15.2, s: 0.16 },
-      { x: 4, y: 15.8, s: 0.14 }, { x: 24, y: 8.4, s: 0.18 }, { x: 31, y: -7.8, s: 0.15 },
-      { x: 23, y: 17.2, s: 0.13 }, { x: 30, y: -16.8, s: 0.16 },
+      { x: -37, y: 8.4, s: 0.17 }, { x: -34, y: -4.8, s: 0.14 }, { x: -27, y: -17, s: 0.16 },
+      { x: -1, y: 18.6, s: 0.14 }, { x: 30, y: 8.8, s: 0.18 }, { x: 37, y: -7.6, s: 0.15 },
+      { x: 26, y: 18.2, s: 0.13 }, { x: 33, y: -18, s: 0.16 }, { x: 42, y: 2.4, s: 0.12 },
     ];
-    const scattered = Array.from({ length: 30 }, (_, index) => ({
-      x: (seededRandom(index * 3.2) - 0.5) * 72,
-      y: (seededRandom(index * 8.4) - 0.5) * 36,
+    const scattered = Array.from({ length: 52 }, (_, index) => ({
+      x: (seededRandom(index * 3.2) - 0.5) * 86,
+      y: (seededRandom(index * 8.4) - 0.5) * 42,
       s: 0.035 + seededRandom(index * 6.1) * 0.055,
     }));
     return [...fixed, ...scattered];
   }, []);
 
   const rings = useMemo<RingSeed[]>(() => {
-    return Array.from({ length: 20 }, (_, index) => ({
-      x: (seededRandom(index * 6.13) - 0.5) * 30,
+    return Array.from({ length: 24 }, (_, index) => ({
+      x: (seededRandom(index * 6.13) - 0.5) * 34,
       y: 0.15 + seededRandom(index * 2.41) * 0.12,
-      z: (seededRandom(index * 9.17) - 0.5) * 19,
-      scale: 0.18 + seededRandom(index * 3.77) * 0.42,
+      z: (seededRandom(index * 9.17) - 0.5) * 23,
+      scale: 0.16 + seededRandom(index * 3.77) * 0.38,
       rx: -Math.PI / 2 + (seededRandom(index * 5.21) - 0.5) * 0.9,
       ry: (seededRandom(index * 8.02) - 0.5) * 1.4,
       rz: seededRandom(index * 4.44) * Math.PI,
     }));
   }, []);
+
+  const miniChipPositions = useMemo<[number, number, number][]>(() => [
+    [-2.2, 0.25, -0.9],
+    [-0.8, 0.36, -0.5],
+    [0.7, 0.26, -0.7],
+    [2.0, 0.2, -1.05],
+    [-1.7, -0.42, 0.25],
+    [-0.25, -0.28, 0.38],
+    [1.2, -0.36, 0.14],
+    [0.25, -0.8, 0.95],
+  ], []);
 
   useFrame((_, delta) => {
     const t = performance.now() * 0.001;
@@ -445,147 +469,96 @@ function HardwareStage({ progressRef }: { progressRef: MutableRefObject<number> 
     const section = progress * (sectionIds.length - 1);
     const aboutShift = clamp(section);
     const marketsShift = clamp(section - 1);
-    const objectX = lerp(-2.7, 1.4, aboutShift);
-    const objectY = lerp(1.85, 1.72, marketsShift);
-    const objectZ = lerp(-0.9, -1.65, aboutShift);
-    if (stage.current) {
-      stage.current.rotation.x = -1.04 + progress * 0.16;
-      stage.current.rotation.z = -0.2 + Math.sin(t * 0.08) * 0.018 + progress * 0.16;
-      stage.current.position.y = -2.58 - progress * 0.12;
-      stage.current.position.z = -8.35 + progress * 2.45;
+
+    if (world.current) {
+      world.current.rotation.x = -1.02 + progress * 0.12;
+      world.current.rotation.z = -0.16 + progress * 0.22 + Math.sin(t * 0.08) * 0.012;
+      world.current.position.x = lerp(0, -0.42, marketsShift);
+      world.current.position.y = -2.35 - progress * 0.08;
+      world.current.position.z = -8.1 + progress * 2.25;
     }
-    if (ringField.current) {
-      ringField.current.rotation.z = -0.09 + progress * 0.18 + Math.sin(t * 0.08) * 0.012;
-      ringField.current.position.z = -1.8 + progress * 0.9;
+    if (ringsGroup.current) {
+      ringsGroup.current.rotation.z = -0.12 + progress * 0.22;
+      ringsGroup.current.position.z = -2.1 + progress * 1.05;
     }
-    if (heroRings.current) {
-      heroRings.current.rotation.y = -0.34 + Math.sin(t * 0.18) * 0.08 + progress * 0.4;
-      heroRings.current.rotation.z = -0.16 + Math.sin(t * 0.12) * 0.05;
-      heroRings.current.position.x = lerp(-2.15, 1.15, aboutShift);
-      heroRings.current.position.y = lerp(2.55, 2.05, clamp(section - 1));
-      heroRings.current.visible = section < 4.8;
+    if (heroChip.current) {
+      heroChip.current.visible = section < 1.25;
+      heroChip.current.position.x = lerp(-3.1, -0.7, aboutShift);
+      heroChip.current.position.y = 1.52 + Math.sin(t * 0.28) * 0.025;
+      heroChip.current.position.z = lerp(-0.8, -1.9, aboutShift);
+      heroChip.current.rotation.y = lerp(-0.52, -0.2, aboutShift);
+      heroChip.current.rotation.z = lerp(-0.24, -0.02, aboutShift);
+      heroChip.current.scale.setScalar(1.08);
     }
-    if (chip.current) {
-      chip.current.visible = section < 1.48;
-      chip.current.position.x = objectX;
-      chip.current.position.y = objectY + Math.sin(t * 0.42) * 0.045;
-      chip.current.position.z = objectZ;
-      chip.current.rotation.x = -0.08 + Math.sin(t * 0.22) * 0.012;
-      chip.current.rotation.z = lerp(-0.3, 0.1, aboutShift);
-      chip.current.rotation.y = lerp(-0.58, -0.1, aboutShift);
-      chip.current.scale.setScalar(lerp(1.04, 1.24, aboutShift));
+    if (aboutChip.current) {
+      aboutChip.current.visible = section >= 0.75 && section < 2.1;
+      aboutChip.current.position.x = lerp(1.25, 2.15, clamp(section - 0.75));
+      aboutChip.current.rotation.z = 0.12 + Math.sin(t * 0.12) * 0.02;
     }
-    if (marketCluster.current) {
-      marketCluster.current.visible = section >= 1.55 && section < 3.05;
-      marketCluster.current.rotation.y = -0.22 + Math.sin(t * 0.12) * 0.02;
-      marketCluster.current.rotation.z = -0.18 + marketsShift * 0.12;
-      marketCluster.current.position.y = 2.03 + Math.sin(t * 0.32) * 0.035;
+    if (marketChips.current) {
+      marketChips.current.visible = section >= 1.55 && section < 3.15;
+      marketChips.current.rotation.y = -0.18 + Math.sin(t * 0.1) * 0.018;
+      marketChips.current.rotation.z = -0.12 + marketsShift * 0.1;
     }
-    if (platformCluster.current) {
-      platformCluster.current.visible = section >= 2.55 && section < 4.18;
-      platformCluster.current.rotation.y = -0.12 + Math.sin(t * 0.14) * 0.03;
-      platformCluster.current.position.y = 1.78 + Math.sin(t * 0.25) * 0.035;
-    }
-    if (industryCluster.current) {
-      industryCluster.current.visible = section >= 3.55 && section < 5.05;
-      industryCluster.current.rotation.z = -0.12 + Math.sin(t * 0.1) * 0.02;
-      industryCluster.current.position.y = 1.74 + Math.sin(t * 0.22) * 0.04;
+    if (tradingGrid.current) {
+      tradingGrid.current.visible = section >= 2.55 && section < 4.25;
+      tradingGrid.current.rotation.y = -0.12 + Math.sin(t * 0.12) * 0.02;
+      tradingGrid.current.position.y = 1.64 + Math.sin(t * 0.2) * 0.028;
     }
   });
 
   return (
     <group>
-      <group ref={stage} position={[0, -2.58, -8.35]} rotation={[-1.04, 0, -0.08]}>
-        <mesh receiveShadow>
-          <planeGeometry args={[74, 44]} />
-          <meshStandardMaterial color="#100501" emissive="#1d0701" emissiveIntensity={0.34} metalness={0.28} roughness={0.5} />
+      <group ref={world} position={[0, -2.35, -8.1]} rotation={[-1.02, 0, -0.16]}>
+        <mesh>
+          <planeGeometry args={[92, 52]} />
+          <meshStandardMaterial color="#080301" emissive="#190701" emissiveIntensity={0.4} metalness={0.42} roughness={0.56} />
         </mesh>
 
         {boardPlates.map((plate, index) => (
-          <mesh key={`plate-${index}`} position={[plate.x, plate.y, 0.032]} rotation={[0, 0, plate.angle]}>
+          <mesh key={`plate-${index}`} position={[plate.x, plate.y, 0.034]} rotation={[0, 0, plate.angle]}>
             <boxGeometry args={[plate.width, plate.height, 0.02]} />
-            <meshStandardMaterial color="#070200" emissive="#210801" emissiveIntensity={0.26} metalness={0.38} roughness={0.62} />
+            <meshStandardMaterial color="#050201" emissive="#240801" emissiveIntensity={0.34} metalness={0.45} roughness={0.54} />
           </mesh>
         ))}
 
-        <InstancedTraces traces={traces.strong} z={0.065} intensity={1.15} />
-        <InstancedTraces traces={traces.fine} z={0.058} intensity={0.68} />
+        <InstancedTraces traces={traces.strong} z={0.07} opacity={0.98} />
+        <InstancedTraces traces={traces.fine} z={0.062} opacity={0.62} />
         <InstancedNodes nodes={nodes} />
       </group>
 
-      <group ref={ringField} position={[0, -2.95, -2.1]} rotation={[-1.08, 0, -0.09]}>
-        <InstancedRingField rings={rings} />
+      <group ref={ringsGroup} position={[0, -2.84, -2.1]} rotation={[-1.02, 0, -0.12]}>
+        <InstancedRings rings={rings} />
       </group>
 
-      <group ref={heroRings} position={[-2.15, 2.55, -1.05]} rotation={[0.2, -0.34, -0.16]}>
-        <group position={[-1.35, 0.3, -0.65]} rotation={[0.25, -0.1, -0.35]} scale={0.72}>
-          <RingModel accentBand />
-        </group>
-        <group position={[0.15, -0.08, 0.2]} rotation={[-0.2, 0.32, 0.24]} scale={0.5}>
-          <RingModel />
-        </group>
-        <group position={[1.18, 0.18, -0.2]} rotation={[0.1, -0.38, 0.52]} scale={0.62}>
-          <RingModel accentBand />
-        </group>
+      <group ref={heroChip} position={[-3.1, 1.52, -0.8]} rotation={[0.03, -0.52, -0.24]}>
+        <PingChip size="hero" />
       </group>
 
-      <group ref={chip} position={[-2.65, 2.58, -1.25]} rotation={[0, -0.1, -0.1]}>
-        <ChipModel />
+      <group ref={aboutChip} position={[1.25, 1.42, -2.05]} rotation={[0.02, -0.24, 0.12]} scale={1.08} visible={false}>
+        <PingChip size="large" />
       </group>
 
-      <group ref={marketCluster} position={[-0.75, 2.03, -2.45]} rotation={[0, -0.2, -0.18]} scale={0.82} visible={false}>
+      <group ref={marketChips} position={[-0.85, 1.82, -2.55]} rotation={[0.02, -0.18, -0.12]} scale={0.88} visible={false}>
         {[
-          [-1.35, 0.02, -0.55],
-          [0.3, 0.2, -0.62],
-          [-0.35, -0.18, 0.62],
+          [-1.3, 0.22, -0.42],
+          [0.2, -0.02, 0.08],
+          [1.44, 0.18, -0.35],
         ].map((position, index) => (
-          <group key={`market-chip-${index}`} position={position as [number, number, number]} rotation={[0, index * 0.25, index * 0.08]}>
-            <ChipModel mini />
-          </group>
-        ))}
-        <group position={[1.1, 0.24, 0.45]} rotation={[0.2, -0.3, 0.45]} scale={0.38}>
-          <RingModel accentBand />
-        </group>
-        <group position={[-1.95, 0.06, 0.4]} rotation={[-0.3, 0.12, -0.25]} scale={0.3}>
-          <RingModel />
-        </group>
-      </group>
-
-      <group ref={platformCluster} position={[1.08, 1.78, -2.35]} rotation={[0, -0.15, -0.08]} scale={0.68} visible={false}>
-        {[
-          [-1.6, 0.18, -0.7],
-          [-0.55, 0.36, -0.35],
-          [0.55, 0.22, -0.25],
-          [1.55, 0.06, -0.55],
-          [-1.18, -0.44, 0.35],
-          [0, -0.28, 0.35],
-          [1.12, -0.38, 0.22],
-          [-0.42, -0.82, 1.02],
-        ].map((position, index) => (
-          <group key={`platform-chip-${index}`} position={position as [number, number, number]} rotation={[0, index * 0.08, index * 0.06]}>
-            <ChipModel mini />
-          </group>
-        ))}
-        {[
-          [-2.0, 0.2, 0.86],
-          [-0.3, 0.52, -0.9],
-          [1.9, -0.04, 0.45],
-        ].map((position, index) => (
-          <group key={`platform-ring-${index}`} position={position as [number, number, number]} rotation={[0.25, index * 0.4, -0.35 + index * 0.2]} scale={0.28 + index * 0.04}>
-            <RingModel accentBand={index === 1} />
+          <group key={`market-chip-${index}`} position={position as [number, number, number]} rotation={[0, -0.04 + index * 0.18, -0.05 + index * 0.06]}>
+            <PingChip size="large" />
           </group>
         ))}
       </group>
 
-      <group ref={industryCluster} position={[0.2, 1.74, -2.2]} rotation={[0, -0.24, -0.12]} scale={0.78} visible={false}>
-        <group position={[-1.35, 0.1, 0]} rotation={[0, -0.2, -0.1]}>
-          <ChipModel />
-        </group>
-        <group position={[1.55, -0.12, 0.18]} rotation={[0, 0.22, 0.04]}>
-          <ChipModel />
-        </group>
-        <group position={[0.25, 0.5, -0.52]} rotation={[0.28, -0.45, 0.22]} scale={0.5}>
-          <RingModel accentBand />
+      <group ref={tradingGrid} position={[0.7, 1.64, -2.8]} rotation={[0, -0.12, -0.06]} scale={0.78} visible={false}>
+        {miniChipPositions.map((position, index) => (
+          <group key={`mini-chip-${index}`} position={position} rotation={[0, index * 0.08, index * 0.05]}>
+            <PingChip size="mini" />
+          </group>
+        ))}
+        <group position={[-2.4, 0.2, 0.65]} rotation={[0.25, -0.2, -0.35]} scale={0.36}>
+          <PingRing accentBand />
         </group>
       </group>
     </group>
