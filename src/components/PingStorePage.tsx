@@ -1,7 +1,7 @@
-import { Environment, PerspectiveCamera, Preload } from "@react-three/drei";
+import { AdaptiveDpr, Environment, PerspectiveCamera, Preload } from "@react-three/drei";
 import { Canvas, useFrame } from "@react-three/fiber";
 import type { MutableRefObject } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
 type PingStorePageProps = {
@@ -32,6 +32,12 @@ type RingSeed = {
   rx: number;
   ry: number;
   rz: number;
+};
+
+type NodeSeed = {
+  s: number;
+  x: number;
+  y: number;
 };
 
 const accent = "#ff4d16";
@@ -186,6 +192,7 @@ function CircuitScene({ onReady, progressRef }: { onReady: () => void; progressR
         <pointLight color={accent} intensity={230} distance={18} position={[-2.1, 1.1, 1.2]} />
         <pointLight color={accent} intensity={120} distance={20} position={[5, -1.2, -7]} />
         <HardwareStage progressRef={progressRef} />
+        <AdaptiveDpr />
         <Environment preset="night" />
         <Preload all />
       </Canvas>
@@ -211,7 +218,7 @@ function ChipModel({ mini = false }: { mini?: boolean }) {
         <boxGeometry args={glow as [number, number, number]} />
         <meshStandardMaterial color="#5e2106" emissive="#ffb13d" emissiveIntensity={1.25} toneMapped={false} roughness={0.32} />
       </mesh>
-      {Array.from({ length: mini ? 10 : 34 }).map((_, index) => (
+      {Array.from({ length: mini ? 6 : 18 }).map((_, index) => (
         <mesh
           key={`mosaic-${index}`}
           position={[
@@ -246,18 +253,102 @@ function RingModel({ accentBand = false }: { accentBand?: boolean }) {
   return (
     <group>
       <mesh castShadow receiveShadow rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[0.56, 0.09, 22, 96]} />
+        <torusGeometry args={[0.56, 0.09, 16, 56]} />
         <meshStandardMaterial color="#030303" metalness={0.98} roughness={0.12} envMapIntensity={2.1} />
       </mesh>
       <mesh rotation={[Math.PI / 2, 0, 0]} scale={1.02}>
-        <torusGeometry args={[0.56, 0.012, 8, 96]} />
+        <torusGeometry args={[0.56, 0.012, 8, 56]} />
         <meshStandardMaterial color={accentBand ? accent : "#151515"} emissive={accentBand ? accent : "#000000"} emissiveIntensity={accentBand ? 1.6 : 0.1} toneMapped={false} />
       </mesh>
       <mesh rotation={[Math.PI / 2, 0, 0]} scale={0.74}>
-        <torusGeometry args={[0.56, 0.009, 8, 96]} />
+        <torusGeometry args={[0.56, 0.009, 8, 56]} />
         <meshStandardMaterial color="#ffffff" emissive="#553018" emissiveIntensity={0.18} toneMapped={false} opacity={0.42} transparent />
       </mesh>
     </group>
+  );
+}
+
+function InstancedTraces({ traces, z, intensity }: { traces: Trace[]; z: number; intensity: number }) {
+  const ref = useRef<THREE.InstancedMesh>(null);
+
+  useLayoutEffect(() => {
+    if (!ref.current) return;
+    const matrix = new THREE.Matrix4();
+    const rotation = new THREE.Euler(0, 0, 0);
+    const quaternion = new THREE.Quaternion();
+    const scale = new THREE.Vector3();
+    traces.forEach((trace, index) => {
+      rotation.z = trace.angle;
+      quaternion.setFromEuler(rotation);
+      scale.set(trace.length, trace.width, 0.024);
+      matrix.compose(new THREE.Vector3(trace.x, trace.y, z), quaternion, scale);
+      ref.current?.setMatrixAt(index, matrix);
+    });
+    ref.current.instanceMatrix.needsUpdate = true;
+  }, [traces, z]);
+
+  return (
+    <instancedMesh ref={ref} args={[undefined, undefined, traces.length]} frustumCulled={false}>
+      <boxGeometry args={[1, 1, 1]} />
+      <meshBasicMaterial color={accent} toneMapped={false} transparent opacity={intensity > 1 ? 1 : 0.82} />
+    </instancedMesh>
+  );
+}
+
+function InstancedNodes({ nodes }: { nodes: NodeSeed[] }) {
+  const ref = useRef<THREE.InstancedMesh>(null);
+
+  useLayoutEffect(() => {
+    if (!ref.current) return;
+    const matrix = new THREE.Matrix4();
+    const quaternion = new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.PI / 2, 0, 0));
+    nodes.forEach((node, index) => {
+      matrix.compose(new THREE.Vector3(node.x, node.y, 0.078), quaternion, new THREE.Vector3(node.s, node.s, 0.03));
+      ref.current?.setMatrixAt(index, matrix);
+    });
+    ref.current.instanceMatrix.needsUpdate = true;
+  }, [nodes]);
+
+  return (
+    <instancedMesh ref={ref} args={[undefined, undefined, nodes.length]} frustumCulled={false}>
+      <cylinderGeometry args={[1, 1, 1, 18]} />
+      <meshBasicMaterial color={accent} toneMapped={false} transparent opacity={0.86} />
+    </instancedMesh>
+  );
+}
+
+function InstancedRingField({ rings }: { rings: RingSeed[] }) {
+  const shell = useRef<THREE.InstancedMesh>(null);
+  const glints = useRef<THREE.InstancedMesh>(null);
+
+  useLayoutEffect(() => {
+    const matrix = new THREE.Matrix4();
+    const rotation = new THREE.Euler();
+    const quaternion = new THREE.Quaternion();
+    const scale = new THREE.Vector3();
+    rings.forEach((ring, index) => {
+      rotation.set(ring.rx, ring.ry, ring.rz);
+      quaternion.setFromEuler(rotation);
+      scale.setScalar(ring.scale);
+      matrix.compose(new THREE.Vector3(ring.x, ring.y, ring.z), quaternion, scale);
+      shell.current?.setMatrixAt(index, matrix);
+      glints.current?.setMatrixAt(index, matrix);
+    });
+    if (shell.current) shell.current.instanceMatrix.needsUpdate = true;
+    if (glints.current) glints.current.instanceMatrix.needsUpdate = true;
+  }, [rings]);
+
+  return (
+    <>
+      <instancedMesh ref={shell} args={[undefined, undefined, rings.length]} frustumCulled={false}>
+        <torusGeometry args={[0.56, 0.09, 14, 44]} />
+        <meshStandardMaterial color="#030303" metalness={0.98} roughness={0.14} envMapIntensity={1.7} />
+      </instancedMesh>
+      <instancedMesh ref={glints} args={[undefined, undefined, rings.length]} frustumCulled={false} scale={1.02}>
+        <torusGeometry args={[0.56, 0.011, 8, 44]} />
+        <meshBasicMaterial color={accent} toneMapped={false} transparent opacity={0.28} />
+      </instancedMesh>
+    </>
   );
 }
 
@@ -279,43 +370,68 @@ function HardwareStage({ progressRef }: { progressRef: MutableRefObject<number> 
     { x: 0, y: -12.2, width: 24, height: 5.8, angle: 0.04 },
   ], []);
 
-  const traces = useMemo<Trace[]>(() => {
-    const anchors = [
-      [-24, -9], [-18, -5], [-14, 2], [-8, 6], [-3, -2], [3, 4],
-      [9, -1], [14, 7], [18, -7], [24, 2], [29, -11], [-29, 8],
-    ];
-    const strong = anchors.flatMap(([x, y], index) => {
-      const direction = index % 3 === 0 ? 0 : index % 3 === 1 ? 0.64 : -0.64;
-      return [
-        { x, y, length: 18 + (index % 4) * 3, width: 0.045, angle: direction },
-        { x: x + 4.6, y: y + 2.25, length: 13 + (index % 5) * 2.3, width: 0.034, angle: direction },
-        { x: x - 5.2, y: y - 2.1, length: 9 + (index % 6) * 2.1, width: 0.026, angle: direction + (index % 2 ? 0.55 : -0.55) },
-      ];
-    });
-    const hairlines = Array.from({ length: 72 }, (_, index) => ({
-      angle: (seededRandom(index * 2.71) - 0.5) * 0.18 + (index % 2 ? 0.58 : -0.58),
-      length: 7 + seededRandom(index * 5.43) * 18,
-      x: (seededRandom(index * 9.91) - 0.5) * 78,
-      y: (seededRandom(index * 4.19) - 0.5) * 38,
-      width: 0.012 + seededRandom(index * 7.2) * 0.018,
-    }));
-    return [...strong, ...hairlines];
+  const traces = useMemo(() => {
+    const strong: Trace[] = [];
+    const fine: Trace[] = [];
+    const add = (target: Trace[], x: number, y: number, length: number, angle: number, width: number) => {
+      target.push({ x, y, length, angle, width });
+    };
+    const route = (target: Trace[], sx: number, sy: number, ex: number, ey: number, lane: number, width: number) => {
+      const midX = sx + (ex - sx) * 0.54;
+      add(target, (sx + midX) / 2, sy, Math.abs(midX - sx), 0, width);
+      add(target, midX, (sy + ey) / 2, Math.abs(ey - sy), Math.PI / 2, width);
+      add(target, (midX + ex) / 2, ey, Math.abs(ex - midX), 0, width);
+      add(target, sx + lane, sy + lane * 0.2, Math.abs(lane) * 2.2, lane > 0 ? 0.72 : -0.72, width * 0.74);
+    };
+
+    [
+      [-9.5, 3.8, -35, 7.6, -2.4],
+      [-8.7, 1.7, -37, -4.6, 2.8],
+      [-6.4, -2.4, -28, -15.2, -1.8],
+      [-2.1, 4.8, 4, 16.2, 2.2],
+      [0.8, 2.2, 31, 8.4, -2.8],
+      [3.5, -1.2, 37, -7.8, 2.5],
+      [7.2, 3.1, 23, 17.6, -1.9],
+      [10.4, -3.8, 30, -17.2, 2.1],
+    ].forEach(([sx, sy, ex, ey, lane], index) => route(strong, sx, sy, ex, ey, lane, index % 2 ? 0.052 : 0.044));
+
+    for (let index = 0; index < 48; index += 1) {
+      const band = index % 6;
+      const isVertical = index % 4 === 0;
+      const angle = isVertical ? Math.PI / 2 : band === 1 ? 0.58 : band === 4 ? -0.58 : 0;
+      add(
+        fine,
+        (seededRandom(index * 9.91) - 0.5) * 76,
+        -17 + band * 6.4 + (seededRandom(index * 3.1) - 0.5) * 1.6,
+        8 + seededRandom(index * 5.43) * 18,
+        angle,
+        0.014 + seededRandom(index * 7.2) * 0.014,
+      );
+    }
+
+    return { fine, strong };
   }, []);
 
-  const nodes = useMemo(() => {
-    return Array.from({ length: 54 }, (_, index) => ({
+  const nodes = useMemo<NodeSeed[]>(() => {
+    const fixed: NodeSeed[] = [
+      { x: -31, y: 7.6, s: 0.18 }, { x: -27.5, y: -4.6, s: 0.14 }, { x: -21, y: -15.2, s: 0.16 },
+      { x: 4, y: 15.8, s: 0.14 }, { x: 24, y: 8.4, s: 0.18 }, { x: 31, y: -7.8, s: 0.15 },
+      { x: 23, y: 17.2, s: 0.13 }, { x: 30, y: -16.8, s: 0.16 },
+    ];
+    const scattered = Array.from({ length: 30 }, (_, index) => ({
       x: (seededRandom(index * 3.2) - 0.5) * 72,
       y: (seededRandom(index * 8.4) - 0.5) * 36,
       s: 0.035 + seededRandom(index * 6.1) * 0.055,
     }));
+    return [...fixed, ...scattered];
   }, []);
 
   const rings = useMemo<RingSeed[]>(() => {
-    return Array.from({ length: 28 }, (_, index) => ({
-      x: (seededRandom(index * 6.13) - 0.5) * 28,
+    return Array.from({ length: 20 }, (_, index) => ({
+      x: (seededRandom(index * 6.13) - 0.5) * 30,
       y: 0.15 + seededRandom(index * 2.41) * 0.12,
-      z: (seededRandom(index * 9.17) - 0.5) * 18,
-      scale: 0.18 + seededRandom(index * 3.77) * 0.48,
+      z: (seededRandom(index * 9.17) - 0.5) * 19,
+      scale: 0.18 + seededRandom(index * 3.77) * 0.42,
       rx: -Math.PI / 2 + (seededRandom(index * 5.21) - 0.5) * 0.9,
       ry: (seededRandom(index * 8.02) - 0.5) * 1.4,
       rz: seededRandom(index * 4.44) * Math.PI,
@@ -333,10 +449,10 @@ function HardwareStage({ progressRef }: { progressRef: MutableRefObject<number> 
     const objectY = lerp(1.85, 1.72, marketsShift);
     const objectZ = lerp(-0.9, -1.65, aboutShift);
     if (stage.current) {
-      stage.current.rotation.x = -1.12 + progress * 0.18;
+      stage.current.rotation.x = -1.04 + progress * 0.16;
       stage.current.rotation.z = -0.2 + Math.sin(t * 0.08) * 0.018 + progress * 0.16;
-      stage.current.position.y = -3.24 - progress * 0.18;
-      stage.current.position.z = -8.8 + progress * 2.8;
+      stage.current.position.y = -2.58 - progress * 0.12;
+      stage.current.position.z = -8.35 + progress * 2.45;
     }
     if (ringField.current) {
       ringField.current.rotation.z = -0.09 + progress * 0.18 + Math.sin(t * 0.08) * 0.012;
@@ -379,7 +495,7 @@ function HardwareStage({ progressRef }: { progressRef: MutableRefObject<number> 
 
   return (
     <group>
-      <group ref={stage} position={[0, -3.18, -8.5]} rotation={[-1.09, 0, -0.08]}>
+      <group ref={stage} position={[0, -2.58, -8.35]} rotation={[-1.04, 0, -0.08]}>
         <mesh receiveShadow>
           <planeGeometry args={[74, 44]} />
           <meshStandardMaterial color="#100501" emissive="#1d0701" emissiveIntensity={0.34} metalness={0.28} roughness={0.5} />
@@ -392,32 +508,13 @@ function HardwareStage({ progressRef }: { progressRef: MutableRefObject<number> 
           </mesh>
         ))}
 
-        {traces.map((trace, index) => (
-          <mesh key={`trace-${index}`} position={[trace.x, trace.y, 0.055]} rotation={[0, 0, trace.angle]}>
-            <boxGeometry args={[trace.length, trace.width, 0.022]} />
-            <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={index < 36 ? 1.2 : 0.68} toneMapped={false} />
-          </mesh>
-        ))}
-
-        {nodes.map((node, index) => (
-          <mesh key={`node-${index}`} position={[node.x, node.y, 0.075]}>
-            <cylinderGeometry args={[node.s, node.s, 0.03, 18]} />
-            <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.9} toneMapped={false} />
-          </mesh>
-        ))}
+        <InstancedTraces traces={traces.strong} z={0.065} intensity={1.15} />
+        <InstancedTraces traces={traces.fine} z={0.058} intensity={0.68} />
+        <InstancedNodes nodes={nodes} />
       </group>
 
       <group ref={ringField} position={[0, -2.95, -2.1]} rotation={[-1.08, 0, -0.09]}>
-        {rings.map((ring, index) => (
-          <group
-            key={`scattered-ring-${index}`}
-            position={[ring.x, ring.y, ring.z]}
-            rotation={[ring.rx, ring.ry, ring.rz]}
-            scale={ring.scale}
-          >
-            <RingModel accentBand={index % 6 === 0} />
-          </group>
-        ))}
+        <InstancedRingField rings={rings} />
       </group>
 
       <group ref={heroRings} position={[-2.15, 2.55, -1.05]} rotation={[0.2, -0.34, -0.16]}>
