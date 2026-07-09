@@ -13,8 +13,7 @@ export const Route = createFileRoute("/")({
       { property: "og:title", content: "Ping! — NFC Identity Network" },
       {
         property: "og:description",
-        content:
-          "A black, white, and orange product experience for the Ping! identity ring.",
+        content: "A black, white, and orange product experience for the Ping! identity ring.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

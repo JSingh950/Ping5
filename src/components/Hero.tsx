@@ -56,16 +56,16 @@ export function Hero() {
           </p>
         </div>
 
-        <div className="relative min-h-[520px] lg:min-h-[660px]">
+        <div className="relative min-h-[360px] lg:min-h-[520px]">
           <div className="absolute inset-0 rounded-[48px] bg-[linear-gradient(135deg,rgba(255,255,255,0.16),rgba(255,255,255,0.02))] ring-1 ring-white/10" />
           <div className="absolute inset-x-10 top-10 h-32 rounded-full bg-mint/20 blur-3xl" />
           <div className="absolute left-1/2 top-8 h-[520px] w-[520px] -translate-x-1/2 rounded-full border border-white/10 bg-[radial-gradient(circle,rgba(255,255,255,0.09),rgba(255,255,255,0)_62%)]" />
 
-          <div className="absolute inset-x-5 top-8 overflow-hidden rounded-[36px] border border-white/10 bg-black shadow-[0_44px_120px_rgba(0,0,0,0.75),0_0_90px_rgba(89,255,183,0.18)] md:inset-x-8">
+          <div className="absolute inset-x-0 top-8 overflow-hidden rounded-[36px] border border-white/10 bg-black shadow-[0_44px_120px_rgba(0,0,0,0.75),0_0_90px_rgba(89,255,183,0.18)] md:inset-x-2">
             <video
               ref={videoRef}
-              className="aspect-[4/5] w-full object-cover md:aspect-[5/6]"
-              src="/ping-diagram-loop.mp4"
+              className="aspect-video w-full object-cover"
+              src="/ping-diagram-loop-recreated-16x9.mp4"
               autoPlay
               muted={isMuted}
               loop
